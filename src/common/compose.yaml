@@ -1,0 +1,95 @@
+﻿name: invoices-system
+
+services:
+    # ====================== БАЗЫ ДАННЫХ ======================
+    postgres:
+      image: postgres:16-alpine
+      container_name: postgres-main
+      environment:
+        POSTGRES_DB: ${DB_NAME}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+      ports:
+        - "5432:5432"
+      volumes:
+        - postgres-data:/var/lib/postgresql/data
+  
+     # ====================== KAFKA ======================
+    kafka:
+      container_name: kafka-abs
+      image: apache/kafka:latest
+      ports:
+        - "9092:9092" #docker
+        - "9094:9094" #host machine
+      environment:
+        KAFKA_NODE_ID: 1
+        KAFKA_CLUSTER_ID: "invoices-alfa-cluster-1"
+        KAFKA_PROCESS_ROLES: 'broker, controller'
+        
+        KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+        KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+        
+        KAFKA_LISTENERS: >
+          PLAINTEXT://0.0.0.0:9092,
+          EXTERNAL://0.0.0.0:9094,
+          CONTROLLER://0.0.0.0:9093
+        KAFKA_ADVERTISED_LISTENERS: >
+          PLAINTEXT://kafka:9092,
+          EXTERNAL://localhost:9094
+        
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >
+          CONTROLLER:PLAINTEXT,
+          PLAINTEXT:PLAINTEXT,
+          EXTERNAL:PLAINTEXT
+        
+        KAFKA_INNER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+        
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+        KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+        
+        KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+        KAFKA_AUTO_CREATE_TOPIC_ENABLE: 'true'
+        
+        KAFKA_NUM_PARTITIONS: 12
+        
+        KAFKA_LOG_DIRS: /var/lib/kafka/data
+      volumes:
+        - kafka_data:/var/lib/kafka/data
+    
+    kafka-ui:
+      container_name: kafka-ui
+      image: ghcr.io/kafbat/kafka-ui:latest
+      ports:
+        - "8070:8080"
+      depends_on:
+        - kafka
+      environment:
+        KAFKA_CLUSTERS_0_NAME: local
+        KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+        DYNAMIC_CONFIG_ENABLED: 'true'
+      restart: unless-stopped
+  
+  # ====================== МИКРОСЕРВИСЫ ======================
+    abs-integration-service:
+      build:
+        context: ../AbsIntegrationService
+        dockerfile: Dockerfile
+      container_name: abs-integration-service
+      depends_on:
+        postgres:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Development
+        - Schema=drafts
+      ports:
+        - "5001:8080"
+      restart: unless-stopped
+
+volumes:
+  postgres-data:
+  kafka_data:
+
+      

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AbsIntegrationService\AbsIntegrationService.csproj" />
+    <Project Path="src/ExportService/ExportService.csproj" />
+    <Project Path="src/InvoicesWebService\InvoicesWebService.csproj" />
+    <Project Path="src/ReportingService/ReportingService.csproj" />
+  </Folder>
+  <Folder Name="/src/common/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="src/common/compose.yaml" />
+    <File Path="src\common\.env" />
+    <Project Path="src/common/Messaging.Kafka/Messaging.Kafka.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>
