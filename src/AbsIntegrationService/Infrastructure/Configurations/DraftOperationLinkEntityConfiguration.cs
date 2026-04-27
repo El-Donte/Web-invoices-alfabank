@@ -4,16 +4,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AbsIntegrationService.Infrastructure.Configurations;
 
-public class InvoiceDraftLineEntityConfiguration(string schema) : IEntityTypeConfiguration<InvoiceDraftLineEntity>
+public class DraftOperationLinkEntityConfiguration(string schema) : IEntityTypeConfiguration<DraftOperationLinkEntity>
 {
-    public void Configure(EntityTypeBuilder<InvoiceDraftLineEntity> builder)
+    public void Configure(EntityTypeBuilder<DraftOperationLinkEntity> builder)
     {
-        builder.ToTable("invoice_draft_lines", schema);
-        builder.HasKey(l => l.Id);
+        builder.ToTable("draft_operation_links", schema);
+        builder.HasKey(e => e.Id);
         
         builder
             .HasOne(l => l.InvoiceDraft)
-            .WithMany(i => i.Lines)
+            .WithMany(i => i.LinkedOperations)
             .HasForeignKey(l => l.InvoiceDraftId)
             .OnDelete(DeleteBehavior.Cascade);
     }

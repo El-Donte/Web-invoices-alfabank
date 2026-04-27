@@ -4,13 +4,13 @@ using AutoMapper;
 
 namespace AbsIntegrationService.Infrastructure.MappingProfiles;
 
-public class InvoiceDraftMapperProfile : Profile
+public class DraftOperationLinkMapperProlife: Profile
 {
-    public InvoiceDraftMapperProfile()
+    public DraftOperationLinkMapperProlife()
     {
-        CreateMap<InvoiceDraftEntity, InvoiceDraft>()
+        CreateMap<DraftOperationLinkEntity, DraftOperationLink>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
-        CreateMap<InvoiceDraft, InvoiceDraftEntity>()
+        CreateMap<DraftOperationLink,DraftOperationLinkEntity>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
     }
 }

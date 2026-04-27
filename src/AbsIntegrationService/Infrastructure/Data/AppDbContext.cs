@@ -1,6 +1,7 @@
 using AbsIntegrationService.Infrastructure.Configurations;
 using AbsIntegrationService.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace AbsIntegrationService.Infrastructure.Data;
 
@@ -15,7 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        var connectionString = configuration.GetSection("UseConnection").Value;
+        var connectionKeyName = configuration.GetSection("UseConnection").Value!;
+        var connectionString = configuration.GetConnectionString(connectionKeyName);
         _schema = configuration.GetSection("Schema").Value!;
 
         optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>
@@ -30,25 +32,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<InvoiceDraftEntity>(entity =>
-        {
-            entity.ToTable("invoice_drafts", _schema);
-        });
-        
-        modelBuilder.Entity<InvoiceDraftLineEntity>(entity =>
-        {
-            entity.ToTable("invoice_draft_lines", _schema);
-        });
-        
-        modelBuilder.Entity<DraftOperationLinkEntity>(entity =>
-        {
-            entity.ToTable("draft_operation_links", _schema);
-        });
+        modelBuilder.HasDefaultSchema(_schema); 
         
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        modelBuilder.ApplyConfiguration(new InvoiceDraftEntityConfiguration());
-        modelBuilder.ApplyConfiguration(new InvoiceDraftLineEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new InvoiceDraftEntityConfiguration(_schema));
+        modelBuilder.ApplyConfiguration(new InvoiceDraftLineEntityConfiguration(_schema));
+        modelBuilder.ApplyConfiguration(new DraftOperationLinkEntityConfiguration(_schema));
         
         base.OnModelCreating(modelBuilder);
     }

@@ -8,8 +8,7 @@ public class InvoiceDraftLine(
     string unit,
     decimal ndsRate,
     decimal priceWithoutNds,
-    string contractNumber,
-    string operationType)
+    string contractNumber)
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -28,5 +27,4 @@ public class InvoiceDraftLine(
     public decimal AmountWithNds { get; set; }
     
     public string ContractNumber { get; set; } = contractNumber;
-    public string OperationType { get; set; } = operationType;
 }

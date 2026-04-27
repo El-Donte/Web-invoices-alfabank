@@ -16,7 +16,7 @@ public class DraftOperationLinkEntity
     public Guid InvoiceDraftId { get; set; }
 
     [ForeignKey(nameof(InvoiceDraftId))]
-    public InvoiceDraft InvoiceDraft { get; set; } = null!;
+    public InvoiceDraftEntity InvoiceDraft { get; set; } = null!;
 
     [Column("operation_number")]
     [MaxLength(100)]

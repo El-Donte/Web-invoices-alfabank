@@ -4,20 +4,21 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AbsIntegrationService.Infrastructure.Configurations;
 
-public class InvoiceDraftEntityConfiguration : IEntityTypeConfiguration<InvoiceDraftEntity>
+public class InvoiceDraftEntityConfiguration(string schema) : IEntityTypeConfiguration<InvoiceDraftEntity>
 {
     public void Configure(EntityTypeBuilder<InvoiceDraftEntity> builder)
     {
+        builder.ToTable("invoice_drafts", schema);
         builder.HasKey(e => e.Id);
 
         builder
             .HasMany(e => e.Lines)
-            .WithOne()
+            .WithOne(l => l.InvoiceDraft)
             .HasForeignKey(l => l.InvoiceDraftId);
         
         builder
             .HasMany(d => d.LinkedOperations)
-            .WithOne()
+            .WithOne(l => l.InvoiceDraft)
             .HasForeignKey(l => l.InvoiceDraftId);
         
         builder

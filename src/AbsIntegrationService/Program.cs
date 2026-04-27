@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAutoMapper(cfg => {
      cfg.AddMaps(typeof(InvoiceDraftMapperProfile).Assembly); 
      cfg.AddMaps(typeof(InvoiceDraftLineMapperProfile).Assembly); 
+     cfg.AddMaps(typeof(DraftOperationLinkMapperProlife).Assembly);
 });
 builder.Services.AddDbContext<AppDbContext>();
 

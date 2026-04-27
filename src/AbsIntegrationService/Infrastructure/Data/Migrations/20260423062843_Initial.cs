@@ -46,35 +46,6 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "InvoiceDraft",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    OperationNumber = table.Column<string>(type: "text", nullable: false),
-                    OperationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Type = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    SellerInn = table.Column<string>(type: "text", nullable: false),
-                    SellerKpp = table.Column<string>(type: "text", nullable: false),
-                    SellerName = table.Column<string>(type: "text", nullable: false),
-                    SellerAddress = table.Column<string>(type: "text", nullable: false),
-                    BuyerInn = table.Column<string>(type: "text", nullable: false),
-                    BuyerKpp = table.Column<string>(type: "text", nullable: false),
-                    BuyerName = table.Column<string>(type: "text", nullable: false),
-                    BuyerAddress = table.Column<string>(type: "text", nullable: false),
-                    TotalWithoutNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    TotalNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    TotalWithNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    CurrencyCode = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InvoiceDraft", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "draft_operation_links",
                 schema: "drafts",
                 columns: table => new
@@ -91,40 +62,11 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 {
                     table.PrimaryKey("PK_draft_operation_links", x => x.id);
                     table.ForeignKey(
-                        name: "FK_draft_operation_links_InvoiceDraft_invoice_draft_id",
-                        column: x => x.invoice_draft_id,
-                        principalTable: "InvoiceDraft",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
                         name: "FK_draft_operation_links_invoice_drafts_invoice_draft_id",
                         column: x => x.invoice_draft_id,
                         principalSchema: "drafts",
                         principalTable: "invoice_drafts",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "DraftOperationLink",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    InvoiceDraftId = table.Column<Guid>(type: "uuid", nullable: false),
-                    OperationNumber = table.Column<string>(type: "text", nullable: false),
-                    OperationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Amount = table.Column<decimal>(type: "numeric", nullable: false),
-                    SourceMessageId = table.Column<string>(type: "text", nullable: false),
-                    LinkedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DraftOperationLink", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_DraftOperationLink_InvoiceDraft_InvoiceDraftId",
-                        column: x => x.InvoiceDraftId,
-                        principalTable: "InvoiceDraft",
-                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -150,12 +92,6 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 {
                     table.PrimaryKey("PK_invoice_draft_lines", x => x.id);
                     table.ForeignKey(
-                        name: "FK_invoice_draft_lines_InvoiceDraft_invoice_draft_id",
-                        column: x => x.invoice_draft_id,
-                        principalTable: "InvoiceDraft",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
                         name: "FK_invoice_draft_lines_invoice_drafts_invoice_draft_id",
                         column: x => x.invoice_draft_id,
                         principalSchema: "drafts",
@@ -164,45 +100,11 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "InvoiceDraftLine",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    InvoiceDraftId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ServiceCode = table.Column<string>(type: "text", nullable: false),
-                    ServiceName = table.Column<string>(type: "text", nullable: false),
-                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
-                    Unit = table.Column<string>(type: "text", nullable: false),
-                    PriceWithoutNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    NdsRate = table.Column<decimal>(type: "numeric", nullable: false),
-                    AmountWithoutNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    NdsAmount = table.Column<decimal>(type: "numeric", nullable: false),
-                    AmountWithNds = table.Column<decimal>(type: "numeric", nullable: false),
-                    ContractNumber = table.Column<string>(type: "text", nullable: false),
-                    OperationType = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InvoiceDraftLine", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_InvoiceDraftLine_InvoiceDraft_InvoiceDraftId",
-                        column: x => x.InvoiceDraftId,
-                        principalTable: "InvoiceDraft",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_draft_operation_links_invoice_draft_id",
                 schema: "drafts",
                 table: "draft_operation_links",
                 column: "invoice_draft_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DraftOperationLink_InvoiceDraftId",
-                table: "DraftOperationLink",
-                column: "InvoiceDraftId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_invoice_draft_lines_invoice_draft_id",
@@ -216,11 +118,6 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 table: "invoice_drafts",
                 column: "operation_number",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_InvoiceDraftLine_InvoiceDraftId",
-                table: "InvoiceDraftLine",
-                column: "InvoiceDraftId");
         }
 
         /// <inheritdoc />
@@ -231,21 +128,12 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 schema: "drafts");
 
             migrationBuilder.DropTable(
-                name: "DraftOperationLink");
-
-            migrationBuilder.DropTable(
                 name: "invoice_draft_lines",
                 schema: "drafts");
 
             migrationBuilder.DropTable(
-                name: "InvoiceDraftLine");
-
-            migrationBuilder.DropTable(
                 name: "invoice_drafts",
                 schema: "drafts");
-
-            migrationBuilder.DropTable(
-                name: "InvoiceDraft");
         }
     }
 }

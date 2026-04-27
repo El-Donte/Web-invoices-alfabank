@@ -17,6 +17,7 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("drafts")
                 .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -251,178 +252,10 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                     b.ToTable("invoice_draft_lines", "drafts");
                 });
 
-            modelBuilder.Entity("AbsIntegrationService.Models.DraftOperationLink", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("InvoiceDraftId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("LinkedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("OperationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OperationNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SourceMessageId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvoiceDraftId");
-
-                    b.ToTable("DraftOperationLink");
-                });
-
-            modelBuilder.Entity("AbsIntegrationService.Models.InvoiceDraft", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BuyerAddress")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BuyerInn")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BuyerKpp")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BuyerName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CurrencyCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("OperationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OperationNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SellerAddress")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SellerInn")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SellerKpp")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SellerName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("TotalNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("TotalWithNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("TotalWithoutNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("InvoiceDraft");
-                });
-
-            modelBuilder.Entity("AbsIntegrationService.Models.InvoiceDraftLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AmountWithNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("AmountWithoutNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("ContractNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("InvoiceDraftId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("NdsAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("NdsRate")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("OperationType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("PriceWithoutNds")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("ServiceCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ServiceName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvoiceDraftId");
-
-                    b.ToTable("InvoiceDraftLine");
-                });
-
             modelBuilder.Entity("AbsIntegrationService.Infrastructure.Entities.DraftOperationLinkEntity", b =>
                 {
-                    b.HasOne("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftEntity", null)
+                    b.HasOne("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftEntity", "InvoiceDraft")
                         .WithMany("LinkedOperations")
-                        .HasForeignKey("InvoiceDraftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AbsIntegrationService.Models.InvoiceDraft", "InvoiceDraft")
-                        .WithMany()
                         .HasForeignKey("InvoiceDraftId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -432,14 +265,8 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftLineEntity", b =>
                 {
-                    b.HasOne("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftEntity", null)
+                    b.HasOne("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftEntity", "InvoiceDraft")
                         .WithMany("Lines")
-                        .HasForeignKey("InvoiceDraftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AbsIntegrationService.Models.InvoiceDraft", "InvoiceDraft")
-                        .WithMany()
                         .HasForeignKey("InvoiceDraftId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -447,32 +274,7 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                     b.Navigation("InvoiceDraft");
                 });
 
-            modelBuilder.Entity("AbsIntegrationService.Models.DraftOperationLink", b =>
-                {
-                    b.HasOne("AbsIntegrationService.Models.InvoiceDraft", null)
-                        .WithMany("LinkedOperations")
-                        .HasForeignKey("InvoiceDraftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("AbsIntegrationService.Models.InvoiceDraftLine", b =>
-                {
-                    b.HasOne("AbsIntegrationService.Models.InvoiceDraft", null)
-                        .WithMany("Lines")
-                        .HasForeignKey("InvoiceDraftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("AbsIntegrationService.Infrastructure.Entities.InvoiceDraftEntity", b =>
-                {
-                    b.Navigation("Lines");
-
-                    b.Navigation("LinkedOperations");
-                });
-
-            modelBuilder.Entity("AbsIntegrationService.Models.InvoiceDraft", b =>
                 {
                     b.Navigation("Lines");
 

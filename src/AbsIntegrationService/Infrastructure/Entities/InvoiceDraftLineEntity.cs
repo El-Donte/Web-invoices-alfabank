@@ -16,7 +16,7 @@ public class InvoiceDraftLineEntity
     public Guid InvoiceDraftId { get; set; }
 
     [ForeignKey(nameof(InvoiceDraftId))]
-    public InvoiceDraft InvoiceDraft { get; set; } = null!;
+    public InvoiceDraftEntity InvoiceDraft { get; set; } = null!;
 
     [Column("service_code")]
     [MaxLength(50)]

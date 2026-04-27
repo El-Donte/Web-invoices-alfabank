@@ -9,37 +9,52 @@ namespace AbsIntegrationService.Services.Kafka;
 
 public class AbsMessageHandler(IDraftCalculatorService calculator, IInvoiceDraftRepository repository, IInvoiceDraftCreatedProducer producer) : IMessageHandler<AbsMessage>
 {
-    public async Task HandleAsync(AbsMessage msg, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(AbsMessage msg, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(msg.OperationNumber))
         {
             return;
         }
-        
-        var draft = await repository.GetDraftByOperationNumberAsync(msg.OperationNumber) ?? CreateNewDraftFromMessage(msg);
 
-        var line = CreateLineFromMessage(msg, draft.Id);
-        draft.Lines.Add(line);
+        InvoiceDraft? draft;
+        if (await repository.ExistsAsync(msg.OperationNumber, ct))
+        {
+            Console.WriteLine($"Found existing operation number {msg.OperationNumber}");
+            draft = await repository.GetDraftByOperationNumberAsync(msg.OperationNumber, ct);
+            Console.WriteLine($"Found draft with id {draft.Id} was created");
+        }
+        else
+        {
+            Console.WriteLine($"Creating new operation number {msg.OperationNumber}");
+            draft = await CreateNewDraftFromMessage(msg, ct);
+        }
+
+        if (draft == null)
+        {
+            return;
+        }
         
-        draft.LinkedOperations.Add(CreateOperationLink(msg, draft.Id));
+        draft.Lines.Add(await CreateLineFromMessage(draft.Id, msg, ct));
+        draft.LinkedOperations.Add(await CreateOperationLink(draft.Id, msg, ct));
         
         calculator.CalculateTotals(draft);
-
-        await repository.SaveDraftAsync(draft);
+        
+        await repository.UpdateDraftAsync(draft, ct);
 
         if (ShouldPublishDraft(draft))
         {
             draft.Status = DraftStatus.Ready;
-            await repository.MarkAsReadyAsync(draft.Id);
+            await repository.MarkAsReadyAsync(draft.Id, ct);
 
             var draftEvent = MapToDraftCreatedEvent(draft);
-            await producer.ProduceDraftCreatedAsync(draftEvent, cancellationToken);
+            await producer.ProduceDraftCreatedAsync(draftEvent, ct);
         }
     }
 
     private bool ShouldPublishDraft(InvoiceDraft draft)
     {
-        return draft.Lines.Count > 0 && draft.TotalWithNds > 0;
+        // return draft.Lines.Count > 0 && draft.TotalWithNds > 0;
+        return false;
     }
     
     private InvoiceDraftCreatedEvent MapToDraftCreatedEvent(InvoiceDraft draft)
@@ -56,32 +71,39 @@ public class AbsMessageHandler(IDraftCalculatorService calculator, IInvoiceDraft
             LinkedOperationsCount = draft.LinkedOperations.Count
         };
     }
-    
 
-    private InvoiceDraftLine CreateLineFromMessage(AbsMessage msg, Guid invoiceId)
+    private async Task<InvoiceDraftLine> CreateLineFromMessage(Guid draftId, AbsMessage msg, CancellationToken ct)
     {
         var draftLine = new InvoiceDraftLine(
-            invoiceId, msg.ServiceCode, msg.ServiceName, 
+            draftId, msg.ServiceCode, msg.ServiceName, 
             msg.Quantity, msg.Unit, msg.NdsRate, 
-            msg.PriceWithoutNds, msg.ContractNumber, msg.OperationType
+            msg.PriceWithoutNds, msg.ContractNumber
         );
         
-        return calculator.CalculateLine(draftLine);
+        draftLine = calculator.CalculateLine(draftLine);
+        
+        await repository.AddDraftLineAsync(draftId, draftLine, ct);
+
+        return draftLine;
     }
 
-    private InvoiceDraft CreateNewDraftFromMessage(AbsMessage msg)
+    private async Task<InvoiceDraft> CreateNewDraftFromMessage(AbsMessage msg, CancellationToken ct)
     {
-        return new InvoiceDraft(
-                msg.OperationNumber, msg.OperationDate, msg.SellerInn, 
-                msg.SellerKpp, msg.SellerName, msg.SellerAddress,
-                msg.BuyerInn, msg.BuyerKpp, msg.BuyerName, 
-                msg.BuyerAddress, msg.CurrencyCode
+        var draft = new InvoiceDraft(
+            msg.OperationNumber, msg.OperationDate, msg.SellerInn, 
+            msg.SellerKpp, msg.SellerName, msg.SellerAddress,
+            msg.BuyerInn, msg.BuyerKpp, msg.BuyerName, 
+            msg.BuyerAddress, msg.CurrencyCode
         );
+        
+        await repository.AddDraftAsync(draft, ct);
+        
+        return draft;
     }
     
-    private DraftOperationLink CreateOperationLink(AbsMessage msg, Guid draftId)
+    private async Task<DraftOperationLink> CreateOperationLink(Guid draftId, AbsMessage msg, CancellationToken ct)
     {
-        return new DraftOperationLink
+        var operationLink = new DraftOperationLink
         {
             InvoiceDraftId = draftId,
             OperationNumber = msg.OperationNumber,
@@ -89,5 +111,8 @@ public class AbsMessageHandler(IDraftCalculatorService calculator, IInvoiceDraft
             Amount = msg.PriceWithoutNds,
             SourceMessageId = msg.MessageId.ToString()
         };
+        
+        await repository.AddOperationLinkAsync(draftId, operationLink, ct);
+        return operationLink;
     }
 }

@@ -13,7 +13,11 @@ services:
         - "5432:5432"
       volumes:
         - postgres-data:/var/lib/postgresql/data
-  
+      healthcheck:
+        test: [ "CMD-SHELL", "pg_isready -U postgres -d invoices_db" ]
+        interval: 10s
+        timeout: 5s
+        retries: 5
      # ====================== KAFKA ======================
     kafka:
       container_name: kafka-abs
@@ -56,6 +60,12 @@ services:
         KAFKA_LOG_DIRS: /var/lib/kafka/data
       volumes:
         - kafka_data:/var/lib/kafka/data
+      healthcheck:
+        test: [ "CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9092' || exit 1" ]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+        start_period: 40s
     
     kafka-ui:
       container_name: kafka-ui
@@ -86,6 +96,18 @@ services:
         - Schema=drafts
       ports:
         - "5001:8080"
+      restart: unless-stopped
+      
+    invoice-service:
+      build:
+        context: ../InvoicesWebService
+        dockerfile: Dockerfile
+      container_name: invoice-service
+      depends_on:
+        kafka:
+          condition: service_healthy
+      ports:
+        - "5002:8080"
       restart: unless-stopped
 
 volumes:
