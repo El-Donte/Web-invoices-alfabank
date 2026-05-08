@@ -3,13 +3,14 @@ using System.Text;
 using Shared.Contracts;
 using AbsIntegrationService.Infrastructure.Repositories;
 using AbsIntegrationService.Services.Interfaces;
+using Shared;
 using Shared.Entities;
 
 namespace AbsIntegrationService.Services;
 
 public sealed class TransactionIngestionService(
     IRawTransactionRepository transactionRepo,
-    IErrorHandlingService errorService,
+    IProcessingErrorService errorService,
     IValidationService validationService,
     ILogger<TransactionIngestionService> logger)
     : ITransactionIngestionService
@@ -30,7 +31,8 @@ public sealed class TransactionIngestionService(
             if (!string.IsNullOrEmpty(validationError))
             {
                 validationErrorCount++;
-                await errorService.LogErrorAsync("VALIDATION_FAILED", validationError, rawPayload, retryable: false, ct);
+                await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "VALIDATION_FAILED", 
+                    validationError, rawPayload, Retryable: false), ct);
                 continue;
             }
 
@@ -62,6 +64,7 @@ public sealed class TransactionIngestionService(
             Date = message.OperationDate,
             ProductName = message.ProductName,
             UnitMeasure = message.Unit,
+            CurrencyCode = message.CurrencyCode,
             Quantity = message.Quantity,
             UnitPrice = message.UnitPrice,
             NdsRate = message.NdsRate,
@@ -69,7 +72,7 @@ public sealed class TransactionIngestionService(
             Amount = message.Amount,
             PayloadHash = hash,
             Payload = payload,
-            Status = TransactionStatus.Processed,
+            Status = TransactionStatus.Received,
             ReceivedAt = DateTime.UtcNow,
         };
     

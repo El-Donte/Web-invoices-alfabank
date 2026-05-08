@@ -1,60 +1,102 @@
-using System.Text.Json;
 using Confluent.Kafka;
-using InvoicesWebService.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+using InvoicesWebService.Services.Interfaces;
+using Messaging.Kafka;
+using Messaging.Kafka.Consumer;
+using Shared;
 using Shared.Contracts.Events;
 using Shared.Entities;
 
 namespace InvoicesWebService.Services.Kafka;
 
-public class AggregationReadyConsumer : BackgroundService
+public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
 {
-    private readonly IConsumer<string, string> _consumer;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<AggregationReadyConsumer> _logger;
-
+    public AggregationReadyConsumer(
+        IServiceProvider serviceProvider,
+        KafkaSettings settings,
+        ILogger<AggregationReadyConsumer> logger,
+        KafkaJsonDeserializer<AggregationReadyEvent>  deserializer
+        ) : base(settings, serviceProvider, logger)
+    {
+        _consumer = new ConsumerBuilder<string, AggregationReadyEvent>(_config)
+            .SetErrorHandler((_, e) => _logger.LogError("Kafka error: {Reason} | Code: {Code}", e.Reason, e.Code))
+            .SetPartitionsAssignedHandler((c, partitions) =>
+            {
+                _logger.LogInformation("Assigned partitions: {Partitions}", 
+                    string.Join(", ", partitions.Select(p => p.Partition.Value)));
+            })
+            .SetValueDeserializer(deserializer)
+            .Build();
+        
+        _consumer.Subscribe(_topic);
+    }
+    
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _consumer.Subscribe("abs.aggregation_ready");
-
-        while (!stoppingToken.IsCancellationRequested)
+        _logger.LogInformation("Draft consumer started. Topic: {Topic}", _topic);
+        try
         {
-            var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
-            if (result is null) continue;
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (result is null) continue;
 
-            try
-            {
-                var evt = JsonSerializer.Deserialize<AggregationReadyEvent>(result.Message.Value);
-                await ProcessAsync(evt, stoppingToken);
-                _consumer.Commit(result);
+                    await ConsumeAsync(result, stoppingToken);
+                }
+                catch (ConsumeException ex) when (ex.Error.IsFatal)
+                {
+                    _logger.LogCritical(ex, "Fatal Kafka error.");
+                    break;
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected consume loop error.");
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to process AggregationReadyEvent. Offset NOT committed.");
-            }
+        }
+        finally
+        {
+            _consumer?.Close();
+            _logger.LogInformation("Kafka consumer stopped gracefully.");
+            _consumer?.Dispose();
         }
     }
 
-    private async Task ProcessAsync(AggregationReadyEvent evt, CancellationToken ct)
+    private async Task ConsumeAsync(ConsumeResult<string, AggregationReadyEvent> result, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
-        if (await db.DraftInvoices.AnyAsync(d => d.AggregationGroupId == evt.AggregationGroupId, ct))
-            return;
-        
-        var transactions = await db.RawTransactions
-            .AsNoTracking()
-            .Where(t => t.AggregationGroupId == evt.AggregationGroupId && t.Status == TransactionStatus.Processed)
-            .ToListAsync(ct);
-        
-        // var draft = DraftInvoiceFactory.Create(evt.AggregationGroupId, transactions);
-        //
-        // db.DraftInvoices.Add(draft);
-        // db.AggregationGroups
-        //     .Where(g => g.Id == evt.AggregationGroupId)
-        //     .ExecuteUpdateAsync(s => s.SetProperty(g => g.Status, AggregationStatus.Draft), ct);
-        
-        await db.SaveChangesAsync(ct);
+        var evt = result.Message.Value;
+        _logger.LogInformation("Received AggregationReadyEvent for group {GroupId}", evt.AggregationGroupId);
+
+        using var scope = _serviceProvider.CreateScope();
+        var draftService = scope.ServiceProvider.GetRequiredService<IDraftInvoiceService>();
+        var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
+
+        try
+        {
+            await draftService.ProcessAggregationReadyAsync(evt, ct);
+            
+            _consumer.Commit(result);
+            _logger.LogInformation("Offset committed for group {GroupId}", evt.AggregationGroupId);
+        }
+        catch (Exception ex)
+        {
+            await errorService.LogAsync(new ErrorLogEntry(
+                ProcessingStage.Creation, 
+                "DRAFT_CREATION_ERROR", 
+                ex.Message, 
+                "", 
+                true, 
+                evt.AggregationGroupId), ct);
+            
+            _logger.LogError(
+                ex, 
+                "Draft creation failed for group {GroupId}. Offset NOT committed. Kafka will redeliver.", 
+                evt.AggregationGroupId);
+        }
     }
 }

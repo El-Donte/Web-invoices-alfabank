@@ -1,4 +1,4 @@
-using InvoicesAlfa.Infrastructure.Configurations;
+using InvoicesWebService.Infrastructure.Configurations;
 using Shared.Entities;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -14,9 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<InvoiceFieldChangeHistory> ChangeHistory => Set<InvoiceFieldChangeHistory>();
     public DbSet<User> Users => Set<User>();
     public DbSet<DepartmentAccess> DepartmentAccesses => Set<DepartmentAccess>();
-
-
     public DbSet<AggregationGroup> AggregationGroups => Set<AggregationGroup>();
+    public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
     public DbSet<RawTransaction> RawTransactions => Set<RawTransaction>();
     public DbSet<Counterparty> Counterparties => Set<Counterparty>();
 

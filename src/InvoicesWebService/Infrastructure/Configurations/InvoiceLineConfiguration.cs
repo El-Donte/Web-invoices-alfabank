@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Shared.Entities;
 
-namespace InvoicesAlfa.Infrastructure.Configurations;
+namespace InvoicesWebService.Infrastructure.Configurations;
 
 public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
 {

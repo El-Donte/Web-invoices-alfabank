@@ -14,4 +14,9 @@ public class KafkaJsonDeserializer<TMessage> : IDeserializer<TMessage>
     {
         return JsonSerializer.Deserialize<TMessage>(data, _serializeOptions)!;
     }
+    
+    public TMessage Deserialize(string data)
+    {
+        return JsonSerializer.Deserialize<TMessage>(data, _serializeOptions)!;
+    }
 }

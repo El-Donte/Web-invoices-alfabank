@@ -9,7 +9,13 @@ public class DraftInvoice : AuditableEntity
     public decimal NdsRate { get; set; }
     public decimal TotalNdsAmount { get; set; }
     public decimal TotalWithNds { get; set; }
-    public decimal TotalWithoutNds { get; set; }
+
+    public decimal TotalWithoutNds
+    {
+        get =>TotalWithNds - TotalNdsAmount;
+        set;
+    }
+    
     public string CurrencyCode { get; set; } = "RUB";
     public DraftInvoiceStatus Status { get; set; }
     public string ValidationError { get; set; } = string.Empty;

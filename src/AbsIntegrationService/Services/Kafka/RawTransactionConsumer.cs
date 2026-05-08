@@ -1,50 +1,30 @@
 using Shared.Contracts;
 using AbsIntegrationService.Services.Interfaces;
 using Confluent.Kafka;
+using Messaging.Kafka;
+using Messaging.Kafka.Consumer;
+using Shared;
+using Shared.Entities;
 
 namespace AbsIntegrationService.Services.Kafka;
 
-public sealed class RawTransactionConsumer : BackgroundService
+public sealed class RawTransactionConsumer : KafkaConsumer<string>
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IConsumer<string, string> _consumer;
-    private readonly ILogger<RawTransactionConsumer> _logger;
-    private readonly KafkaSettings _settings;
-    private readonly JsonDeserializer<AbsMessage> _deserializer;
-    
-    private readonly string _topic;
-    private bool _disposed;
+    private readonly KafkaJsonDeserializer<AbsMessage> _deserializer;
     
     public RawTransactionConsumer(
         IServiceProvider serviceProvider,
         KafkaSettings settings,
         ILogger<RawTransactionConsumer> logger,
-        JsonDeserializer<AbsMessage> deserializer
-        )
+        KafkaJsonDeserializer<AbsMessage> deserializer
+        ) : base(settings, serviceProvider, logger)
     {
-        _settings = settings;
-        _serviceProvider = serviceProvider;
-        _topic = settings.Topic;
-        _logger = logger;
         _deserializer = deserializer;
+
+        _config.FetchMinBytes = 1024;
+        _config.FetchMaxBytes = 10_485_760;
         
-        var config = new ConsumerConfig
-        {
-            BootstrapServers = settings.BootstrapServers,
-            GroupId = settings.GroupId,
-            EnableAutoCommit = false,
-            EnableAutoOffsetStore = false,
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            MaxPollIntervalMs = 300000,
-            SessionTimeoutMs = 30000,
-            FetchMinBytes = 1024,
-            FetchMaxBytes = 10_485_760,
-            MaxPartitionFetchBytes = 1048576,
-            SocketTimeoutMs = 120000,
-            HeartbeatIntervalMs = 3000
-        };
-        
-        _consumer = new ConsumerBuilder<string, string>(config)
+        _consumer = new ConsumerBuilder<string, string>(_config)
             .SetErrorHandler((_, e) => _logger.LogError("Kafka error: {Reason} | Code: {Code}", e.Reason, e.Code))
             .SetPartitionsAssignedHandler((c, partitions) =>
             {
@@ -59,66 +39,72 @@ public sealed class RawTransactionConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _consumer.Subscribe(_settings.Topic);
-        _logger.LogInformation("Kafka consumer started. Topic: {Topic}, Group: {Group}", _settings.Topic, _settings.GroupId);
+        _logger.LogInformation("Kafka consumer started. Topic: {Topic}, Group: {Group}", _topic, _settings.GroupId);
 
         var batch = new List<ConsumeResult<string, string>>();
         var lastFlush = DateTime.UtcNow;
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
-                if (result is null)
+                try
                 {
-                    if (batch.Count > 0 && (DateTime.UtcNow - lastFlush).TotalMilliseconds > _settings.FlushIntervalMs)
+                    var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (result is null)
+                    {
+                        if (batch.Count > 0 &&
+                            (DateTime.UtcNow - lastFlush).TotalMilliseconds > _settings.FlushIntervalMs)
+                        {
+                            await FlushBatchAsync(batch, stoppingToken);
+                            batch.Clear();
+                            lastFlush = DateTime.UtcNow;
+                        }
+
+                        continue;
+                    }
+
+                    batch.Add(result);
+
+                    if (batch.Count >= _settings.BatchSize)
                     {
                         await FlushBatchAsync(batch, stoppingToken);
                         batch.Clear();
                         lastFlush = DateTime.UtcNow;
                     }
-                    continue;
                 }
-
-                batch.Add(result);
-
-                if (batch.Count >= _settings.BatchSize)
+                catch (ConsumeException ex) when (ex.Error.IsFatal)
                 {
-                    await FlushBatchAsync(batch, stoppingToken);
-                    batch.Clear();
-                    lastFlush = DateTime.UtcNow;
+                    _logger.LogCritical(ex, "Fatal Kafka consumer error. Stopping.");
+                    break;
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error in consume loop");
                 }
             }
-            catch (ConsumeException ex) when (ex.Error.IsFatal)
+            
+            if (batch.Count > 0)
             {
-                _logger.LogCritical(ex, "Fatal Kafka consumer error. Stopping.");
-                break;
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in consume loop");
+                await FlushBatchAsync(batch, CancellationToken.None);
             }
         }
-        
-        if (batch.Count > 0)
+        finally
         {
-            await FlushBatchAsync(batch, CancellationToken.None);
+            _consumer?.Close();
+            _logger.LogInformation("Kafka consumer stopped gracefully.");
+            _consumer?.Dispose();
         }
-
-        _consumer.Close();
-        _logger.LogInformation("Kafka consumer stopped gracefully.");
     }
 
     private async Task FlushBatchAsync(List<ConsumeResult<string, string>> batch, CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<ITransactionIngestionService>();
-        var errorService = scope.ServiceProvider.GetRequiredService<IErrorHandlingService>();
+        var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
 
         var parsedBatch =  new List<(string RawPayload, AbsMessage Message)>();
         
@@ -150,7 +136,8 @@ public sealed class RawTransactionConsumer : BackgroundService
             
             foreach (var (payload, msg) in parsedBatch)
             {
-                await errorService.LogErrorAsync("DB_SAVE_FAILED", ex.Message, payload, true, ct);
+                await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "DB_SAVE_FAILED", 
+                    ex.Message,  payload, Retryable: true), ct);
             }
         }
     }

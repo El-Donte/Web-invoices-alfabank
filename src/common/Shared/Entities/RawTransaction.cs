@@ -10,6 +10,7 @@ public class RawTransaction : AuditableEntity
     public TransactionType Type { get; set; }
     public DateTime? Date { get; set; }
     public string ProductName { get; set; } = string.Empty;
+    public string CurrencyCode { get; set; } = string.Empty;
     public string UnitMeasure { get; set; } = "шт";
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
@@ -37,11 +38,8 @@ public enum TransactionStatus
     [Column("Ошибка валидации")]
     ValidationError = 1, 
     
-    [Column("Дубликат")]
-    Duplicate = 2, 
-    
     [Column("Обработан")]
-    Processed = 3
+    Processed = 2
 }
 
 public enum TransactionType

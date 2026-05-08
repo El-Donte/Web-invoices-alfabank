@@ -15,6 +15,7 @@ public class RawTransactionConfiguration : IEntityTypeConfiguration<RawTransacti
         b.Property(e => e.Type).HasConversion<string>().HasColumnName("type").HasMaxLength(16).IsRequired();
         b.Property(e => e.Date).HasColumnName("date");
         b.Property(e => e.ProductName).HasColumnName("product_name").HasMaxLength(255);
+        b.Property(e => e.CurrencyCode).HasColumnName("currency_code").HasMaxLength(32).IsRequired();
         b.Property(e => e.UnitMeasure).HasColumnName("unit_measure").HasMaxLength(32);
         b.Property(e => e.Quantity).HasPrecision(16, 4).HasColumnName("quantity");
         b.Property(e => e.UnitPrice).HasPrecision(16, 4).HasColumnName("unit_price");
