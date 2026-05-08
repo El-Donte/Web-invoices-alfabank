@@ -9,15 +9,18 @@ public static class Extensions
 {
     public static void AddProducer<TMessage>(this IServiceCollection services, IConfigurationSection configurationSection)
     {
-        services.Configure<KafkaSettings>(configurationSection);
-        services.AddSingleton<IKafkaProducer<TMessage>, KafkaProducer<TMessage>>();
+        var settings = configurationSection.Get<KafkaSettings>();
+        services.AddSingleton<IKafkaProducer<TMessage>>(sp =>
+             ActivatorUtilities.CreateInstance<KafkaProducer<TMessage>>(sp, settings));
     }
 
     public static IServiceCollection AddConsumer<TMessage, THandler>(this IServiceCollection services,
         IConfigurationSection configurationSection) where THandler : class, IMessageHandler<TMessage>
     {
-        services.Configure<KafkaSettings>(configurationSection);
-        services.AddHostedService<KafkaConsumer<TMessage>>();
+        var settings = configurationSection.Get<KafkaSettings>();
+        
+        services.AddHostedService<KafkaConsumer<TMessage>>(sp =>
+            ActivatorUtilities.CreateInstance<KafkaConsumer<TMessage>>(sp, settings));
         services.AddScoped<IMessageHandler<TMessage>, THandler>();
         
         return services;

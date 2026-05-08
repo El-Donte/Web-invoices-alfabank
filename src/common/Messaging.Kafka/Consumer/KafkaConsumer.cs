@@ -3,7 +3,6 @@ using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Messaging.Kafka.Consumer;
 
@@ -16,23 +15,24 @@ public class KafkaConsumer<TMessage> : BackgroundService
     private readonly string _topic;
     private bool _disposed;
     
-    public KafkaConsumer(IOptions<KafkaSettings> kafkaSettings, IServiceProvider serviceProvider,  ILogger<KafkaConsumer<TMessage>> logger)
+    public KafkaConsumer(KafkaSettings kafkaSettings, IServiceProvider serviceProvider,  ILogger<KafkaConsumer<TMessage>> logger)
     {
         _serviceProvider = serviceProvider;
-        _topic = kafkaSettings.Value.Topic;
+        _topic = kafkaSettings.Topic;
         _logger = logger;
         
         var config = new ConsumerConfig
         {
-            BootstrapServers = kafkaSettings.Value.BootstrapServers,
-            GroupId =  kafkaSettings.Value.GroupId,
+            BootstrapServers = kafkaSettings.BootstrapServers,
+            GroupId =  kafkaSettings.GroupId,
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoOffsetStore = false,
-            FetchMaxBytes = 10485760,                   // 10 MB
+            FetchMinBytes = 1024,
+            FetchMaxBytes = 10_485_760,
             MaxPartitionFetchBytes = 1048576,
             MaxPollIntervalMs = 300000,  
             SocketTimeoutMs = 120000,
-            SessionTimeoutMs = 45000,
+            SessionTimeoutMs = 30000,
             HeartbeatIntervalMs = 3000
         };
         
@@ -57,7 +57,7 @@ public class KafkaConsumer<TMessage> : BackgroundService
             {
                 try
                 {
-                    var consumeResult = _consumer.Consume(stoppingToken);
+                    var consumeResult = _consumer.Consume(TimeSpan.FromMilliseconds(100));
 
                     if (consumeResult == null || consumeResult.IsPartitionEOF)
                         continue;
@@ -66,9 +66,10 @@ public class KafkaConsumer<TMessage> : BackgroundService
                     
                     _consumer.Commit(consumeResult);
                 }
-                catch (ConsumeException ex)
+                catch (ConsumeException ex) when (ex.Error.IsFatal)
                 {
-                    _logger.LogError(ex, "Consume error");
+                    _logger.LogCritical(ex, "Fatal Kafka consumer error. Stopping.");
+                    break;
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -76,8 +77,7 @@ public class KafkaConsumer<TMessage> : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unexpected error in consumer loop");
-                    break;
+                    _logger.LogError(ex, "Unexpected error in consume loop");
                 }
             }
         }
@@ -93,7 +93,7 @@ public class KafkaConsumer<TMessage> : BackgroundService
         var message = result.Message.Value;
         var key = result.Message.Key;
 
-        _logger.LogDebug("Received message. Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Key: {Key}",
+        _logger.LogInformation("Received message. Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Key: {Key}",
             result.Topic, result.Partition, result.Offset, key);
 
         using var scope = _serviceProvider.CreateScope();
@@ -119,7 +119,7 @@ public class KafkaConsumer<TMessage> : BackgroundService
         _consumer.Close();
         return base.StopAsync(cancellationToken);
     }
-    
+
     public override void Dispose()
     {
         if (!_disposed)

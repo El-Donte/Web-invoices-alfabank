@@ -264,3 +264,5 @@ docker-compose.override.yml
 # Rider specific extra ignores
 .DS_Store
 Thumbs.db
+
+**appsettings.Development.json

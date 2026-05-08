@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="AutoMapper" Version="16.1.1" />
+      <PackageReference Include="Confluent.Kafka" Version="2.14.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
         <PrivateAssets>all</PrivateAssets>
@@ -23,10 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Infrastructure\Data\Migrations\" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <ProjectReference Include="..\common\Shared\Shared.csproj" />
       <ProjectReference Include="..\common\Messaging.Kafka\Messaging.Kafka.csproj" />
     </ItemGroup>
 

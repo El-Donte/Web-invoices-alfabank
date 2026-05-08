@@ -10,7 +10,9 @@
     <File Path="README.md" />
     <File Path="src/common/compose.yaml" />
     <File Path="src\common\.env" />
+    <File Path="src\common\.env.example" />
     <Project Path="src/common/Messaging.Kafka/Messaging.Kafka.csproj" />
+    <Project Path="src\common\Shared\Shared.csproj" />
   </Folder>
   <Folder Name="/tests/" />
 </Solution>
