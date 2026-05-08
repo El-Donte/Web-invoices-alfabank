@@ -1,45 +1,52 @@
 using AbsIntegrationService.Infrastructure.Configurations;
-using AbsIntegrationService.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql;
+using Shared.Entities;
 
 namespace AbsIntegrationService.Infrastructure.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration): DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) : DbContext
 {
-    public DbSet<InvoiceDraftEntity> InvoicesDrafts { get; set; }
+    public DbSet<RawTransaction> RawTransactions => Set<RawTransaction>();
+    public DbSet<AggregationGroup> AggregationGroups => Set<AggregationGroup>();
+    public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
+    public DbSet<Counterparty> Counterparties => Set<Counterparty>(); 
+    public DbSet<Department> Departments => Set<Department>();
     
-    public DbSet<InvoiceDraftLineEntity> InvoiceLines { get; set; }
-    
-    public DbSet<DraftOperationLinkEntity> OperationLinks { get; set; }
-    private string _schema = "";
-
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var connectionKeyName = configuration.GetSection("UseConnection").Value!;
         var connectionString = configuration.GetConnectionString(connectionKeyName);
-        _schema = configuration.GetSection("Schema").Value!;
-
+        
         optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>
         {
+            npgsqlOptions.ConfigureDataSource(dataSourceBuilder =>
+            {
+                dataSourceBuilder.ConnectionStringBuilder.ApplicationName = "Abs-Integration-Service";
+                dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Require;
+                dataSourceBuilder.ConnectionStringBuilder.Multiplexing = true;
+                dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 150;
+                dataSourceBuilder.ConnectionStringBuilder.KeepAlive = 30;
+            });
+            
             npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 10,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
                 errorCodesToAdd: null);
-            npgsqlOptions.CommandTimeout(120);
+            npgsqlOptions.CommandTimeout(15);
         });
     }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    
+    protected override void OnModelCreating(ModelBuilder b)
     {
-        modelBuilder.HasDefaultSchema(_schema); 
+        base.OnModelCreating(b);
+        b.HasDefaultSchema("public");
         
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-
-        modelBuilder.ApplyConfiguration(new InvoiceDraftEntityConfiguration(_schema));
-        modelBuilder.ApplyConfiguration(new InvoiceDraftLineEntityConfiguration(_schema));
-        modelBuilder.ApplyConfiguration(new DraftOperationLinkEntityConfiguration(_schema));
+        b.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         
-        base.OnModelCreating(modelBuilder);
+        b.ApplyConfigurationsFromAssembly(typeof(AggregationGroupConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(CounterpartyConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(DepartmentConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(RawTransactionConfiguration).Assembly);
     }
 }

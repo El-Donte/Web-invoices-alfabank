@@ -11,20 +11,20 @@ public class KafkaProducer<TMessage> : IKafkaProducer<TMessage>
     private readonly string _topic;
     private bool _disposed;
 
-    public KafkaProducer(IOptions<KafkaSettings> kafkaSettings,  ILogger<KafkaProducer<TMessage>> logger)
+    public KafkaProducer(KafkaSettings kafkaSettings,  ILogger<KafkaProducer<TMessage>> logger)
     {
         var config = new ProducerConfig
         {
-            BootstrapServers = kafkaSettings.Value.BootstrapServers,
+            BootstrapServers = kafkaSettings.BootstrapServers,
             Acks = Acks.All,
             MessageSendMaxRetries = 5,
             RetryBackoffMs = 500,
             EnableIdempotence = true,
-            ClientId = $"abs-ingestion-producer-{Guid.NewGuid().ToString("N").Substring(0, 8)}"
+            ClientId = $"invoice-system-producer-{Guid.NewGuid().ToString("N").Substring(0, 8)}"
         };
         _logger = logger;
         
-        _topic = kafkaSettings.Value.Topic;
+        _topic = kafkaSettings.Topic;
         
         _producer = new ProducerBuilder<string, TMessage>(config)
             .SetValueSerializer(new KafkaJsonSerializer<TMessage>())
