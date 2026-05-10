@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace AbsIntegrationService.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class IntegrationService : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -95,8 +95,9 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     operation_number = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    type = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
                     date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    type = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    product_code = table.Column<string>(type: "text", nullable: false),
                     product_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     currency_code = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     unit_measure = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),

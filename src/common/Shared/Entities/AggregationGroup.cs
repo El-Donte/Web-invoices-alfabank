@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Auditable;
 
 namespace Shared.Entities;
 
-public class AggregationGroup : AuditableEntity
+public class AggregationGroup : IAuditableEntity
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
     public string OperationNumber { get; set; } = string.Empty;
     public DateTime? TransactionDate { get; set; }
     public AggregationStatus Status { get; set; }
@@ -17,6 +18,10 @@ public class AggregationGroup : AuditableEntity
     public DateTime? ReadyAt { get; set; }
     public Guid? CounterpartyId { get; set; }
     public Guid? DepartmentId { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    
 }
 
 public enum AggregationStatus

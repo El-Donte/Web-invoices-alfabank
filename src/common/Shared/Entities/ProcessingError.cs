@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Auditable;
+using Shared;
 
 namespace Shared.Entities;
 
-public class ProcessingError : AuditableEntity
+public class ProcessingError : IAuditableEntity
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public ProcessingStage Stage { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
@@ -15,6 +16,8 @@ public class ProcessingError : AuditableEntity
     public Guid? DraftInvoiceId { get; set; }
     public Guid? InvoiceId { get; set; }
     public Guid? RawTransactionId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum ProcessingStage

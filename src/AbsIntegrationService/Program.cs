@@ -18,10 +18,12 @@ using Shared.Contracts.Events;
 var builder = WebApplication.CreateBuilder(args);
 
 //db
+builder.Services.AddSingleton<AuditInterceptor>();
 builder.Services.AddDbContext<AppDbContext>();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 //repos
+builder.Services.AddScoped<ICounterpartyRepository, CounterpartyRepository>();
 builder.Services.AddScoped<IAggregationRepository, AggregationRepository>();
 builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
 builder.Services.AddScoped<IRawTransactionRepository, RawTransactionRepository>();
@@ -64,10 +66,11 @@ builder.Services.AddOpenTelemetry()
             .AddSource("InvoiceSystem")
             .AddOtlpExporter(o =>
             {
-                o.Endpoint = new Uri("http://tempo:4318");
+                o.Endpoint = new Uri("http://localhost:4318");
                 o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-            }))
-    .UseOtlpExporter();
+            }));
+
+builder.Services.AddControllers();
 
 var app = builder.Build();
 

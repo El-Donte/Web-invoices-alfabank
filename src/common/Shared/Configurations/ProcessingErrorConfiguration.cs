@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Shared.Entities;
 
-namespace AbsIntegrationService.Infrastructure.Configurations;
+namespace Shared.Configurations;
 
 public class ProcessingErrorConfiguration : IEntityTypeConfiguration<ProcessingError>
 {

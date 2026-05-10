@@ -335,6 +335,11 @@ namespace AbsIntegrationService.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at");
 
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("product_code");
+
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(255)

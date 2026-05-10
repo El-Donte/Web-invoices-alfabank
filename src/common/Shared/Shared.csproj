@@ -21,8 +21,4 @@
       <PackageReference Include="prometheus-net" Version="8.2.1" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Configurations\" />
-    </ItemGroup>
-
 </Project>

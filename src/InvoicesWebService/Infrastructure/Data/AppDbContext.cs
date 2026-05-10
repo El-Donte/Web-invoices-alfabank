@@ -2,6 +2,8 @@ using InvoicesWebService.Infrastructure.Configurations;
 using Shared.Entities;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Shared;
+using Shared.Configurations;
 
 namespace InvoicesWebService.Infrastructure.Data;
 
@@ -14,8 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<InvoiceFieldChangeHistory> ChangeHistory => Set<InvoiceFieldChangeHistory>();
     public DbSet<User> Users => Set<User>();
     public DbSet<DepartmentAccess> DepartmentAccesses => Set<DepartmentAccess>();
-    
-    
+
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -28,10 +29,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
             npgsqlOptions.ConfigureDataSource(dataSourceBuilder =>
             {
                 dataSourceBuilder.ConnectionStringBuilder.ApplicationName = "Invoices-Web-Service";
-                dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Require;
+                dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Prefer;
                 dataSourceBuilder.ConnectionStringBuilder.Multiplexing = true;
                 dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 150;
-                dataSourceBuilder.ConnectionStringBuilder.KeepAlive = 30;
             });
             
             npgsqlOptions.EnableRetryOnFailure(
@@ -40,7 +40,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
                 errorCodesToAdd: null);
             npgsqlOptions.CommandTimeout(30);
             
-        }).EnableSensitiveDataLogging(false);
+        })
+            .AddInterceptors(new AuditInterceptor())
+            .EnableSensitiveDataLogging(false);
     }
     
     protected override void OnModelCreating(ModelBuilder b)
@@ -50,6 +52,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         b.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         b.ApplyConfigurationsFromAssembly(typeof(UserConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(ProcessingErrorConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(RawTransactionConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(InvoiceConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(InvoiceLineConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(InvoiceFieldChangeHistoryConfiguration).Assembly);
@@ -62,11 +66,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         b.Entity<InvoiceLine>().HasQueryFilter(l => 
             EF.Property<Guid>(l.Invoice, "DepartmentId") == GetCurrentDepartmentId());
         
-        b.Ignore<RawTransaction>();
         b.Ignore<Counterparty>();
         b.Ignore<Department>();
         b.Ignore<AggregationGroup>();
-        b.Ignore<ProcessingError>();
         b.Ignore<ExportRecord>();
     }
 

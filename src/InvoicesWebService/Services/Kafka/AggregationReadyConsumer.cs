@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Confluent.Kafka;
 using InvoicesWebService.Metrics;
 using InvoicesWebService.Services.Interfaces;
@@ -96,7 +97,7 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
                 ProcessingStage.Creation, 
                 "DRAFT_CREATION_ERROR", 
                 ex.Message, 
-                "", 
+                JsonSerializer.Serialize(evt), 
                 true, 
                 evt.AggregationGroupId), ct);
         }

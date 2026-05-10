@@ -1,14 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Auditable;
+using Shared;
 
 namespace Shared.Entities;
 
-public class RawTransaction : AuditableEntity
+public class RawTransaction : IAuditableEntity
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string OperationNumber { get; set; } = string.Empty;
-    public TransactionType Type { get; set; }
     public DateTime? Date { get; set; }
+    public TransactionType Type { get; set; }
+    public string ProductCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
     public string CurrencyCode { get; set; } = string.Empty;
     public string UnitMeasure { get; set; } = "шт";
@@ -28,6 +30,9 @@ public class RawTransaction : AuditableEntity
     public Guid? CounterpartyId { get; set; }
     public Guid? DepartmentId { get; set; }
     public Guid? InvoiceId { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum TransactionStatus

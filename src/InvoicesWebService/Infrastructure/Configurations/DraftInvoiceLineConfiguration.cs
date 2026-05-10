@@ -18,7 +18,6 @@ public class DraftInvoiceLineConfiguration : IEntityTypeConfiguration<DraftInvoi
         b.Property(e => e.Quantity).HasPrecision(16, 4).HasColumnName("quantity").IsRequired();
         b.Property(e => e.UnitPrice).HasPrecision(16, 4).HasColumnName("unit_price").IsRequired();
         b.Property(e => e.AmountWithoutNds).HasPrecision(16, 4).HasColumnName("amount_without_nds").IsRequired();
-        b.Property(e => e.AmountWithNds).HasPrecision(16, 4).HasColumnName("amount_with_nds").IsRequired();
         b.Property(e => e.NdsRate).HasPrecision(16, 4).HasColumnName("nds_rate").IsRequired();
         b.Property(e => e.NdsAmount).HasPrecision(16, 4).HasColumnName("nds_amount").IsRequired();
         b.Property(e => e.TotalAmount).HasPrecision(16, 4).HasColumnName("total_amount").IsRequired();

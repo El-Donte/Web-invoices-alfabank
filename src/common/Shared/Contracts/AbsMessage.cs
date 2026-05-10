@@ -43,6 +43,8 @@ public class AbsMessage
     public DateTime? PaymentDocumentDate { get; set; }
     public string OperationType { get; set; } = string.Empty;
 
+    public Guid DepartmentId { get; set; }
+    
     // Метаданные
     public DateTime PostedAt { get; set; } = DateTime.UtcNow;
 }

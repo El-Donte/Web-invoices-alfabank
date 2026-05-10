@@ -1,18 +1,18 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Auditable;
 
 namespace Shared.Entities;
 
-public class ExportRecord : AuditableEntity
+public class ExportRecord : IAuditableEntity
 {
+    public Guid Id { get; set; } =  Guid.NewGuid();
     public ExportStatus Status { get; set; }
     public string Destination { get; set; } = "csv";
     public string LastError { get; set; } = string.Empty;
     public DateTime? LastAttemptAt { get; set; }
     public DateTime? ExportedAt { get; set; }
     public Guid InvoiceId { get; set; }
-
-    public virtual Invoice Invoice { get; set; } = null!;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum ExportStatus

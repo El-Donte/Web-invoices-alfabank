@@ -18,8 +18,8 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
     public RawTransactionConsumer(
         IServiceProvider serviceProvider,
         KafkaSettings settings,
-        ILogger<RawTransactionConsumer> logger,
-        KafkaJsonDeserializer<AbsMessage> deserializer
+        KafkaJsonDeserializer<AbsMessage> deserializer,
+        ILogger<RawTransactionConsumer> logger
         ) : base(settings, serviceProvider, logger)
     {
         _deserializer = deserializer;

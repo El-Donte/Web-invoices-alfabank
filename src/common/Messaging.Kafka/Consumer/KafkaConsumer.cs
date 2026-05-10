@@ -18,6 +18,7 @@ public class KafkaConsumer<TMessage> : BackgroundService
     
     protected KafkaConsumer(KafkaSettings kafkaSettings, IServiceProvider serviceProvider,  ILogger<KafkaConsumer<TMessage>> logger)
     {
+        _settings = kafkaSettings;
         _serviceProvider = serviceProvider;
         _topic = kafkaSettings.Topic;
         _logger = logger;

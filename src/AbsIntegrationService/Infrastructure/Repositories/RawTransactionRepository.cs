@@ -29,9 +29,12 @@ public class RawTransactionRepository(AppDbContext context) : IRawTransactionRep
             { 
                 Id = t.Id, 
                 OperationNumber = t.OperationNumber, 
+                TransactionDate = t.Date.Value,
                 Type = t.Type, 
                 Amount = t.Amount, 
-                NdsAmount = t.NdsAmount 
+                NdsAmount = t.NdsAmount,
+                DepartmentId = t.DepartmentId.Value,
+                CounterpartyId = t.CounterpartyId.Value
             })
             .ToListAsync(ct);
 

@@ -4,6 +4,7 @@ namespace Shared.Contracts.Events;
 public record AggregationReadyEvent(
     Guid AggregationGroupId,
     string OperationNumber,
+    DateTime TransactionDate,
     DateTime? ReadyAt,
     int ShipmentCount,
     int AdvanceCount,

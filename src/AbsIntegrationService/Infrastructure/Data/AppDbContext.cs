@@ -1,6 +1,8 @@
 using AbsIntegrationService.Infrastructure.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Shared;
+using Shared.Configurations;
 using Shared.Entities;
 
 namespace AbsIntegrationService.Infrastructure.Data;
@@ -10,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<RawTransaction> RawTransactions => Set<RawTransaction>();
     public DbSet<AggregationGroup> AggregationGroups => Set<AggregationGroup>();
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
+    public DbSet<Counterparty> Counterparties => Set<Counterparty>();
     
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -21,7 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
             npgsqlOptions.ConfigureDataSource(dataSourceBuilder =>
             {
                 dataSourceBuilder.ConnectionStringBuilder.ApplicationName = "Abs-Integration-Service";
-                dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Require;
+                dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Prefer;
                 dataSourceBuilder.ConnectionStringBuilder.Multiplexing = true;
                 dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 150;
             });
@@ -31,7 +34,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
                 maxRetryDelay: TimeSpan.FromSeconds(10),
                 errorCodesToAdd: null);
             npgsqlOptions.CommandTimeout(15);
-        });
+        })
+            .AddInterceptors(new AuditInterceptor())
+            .EnableSensitiveDataLogging(false);
     }
     
     protected override void OnModelCreating(ModelBuilder b)

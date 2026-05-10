@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using Auditable;
 
 namespace Shared.Entities;
 
-public class DraftInvoice : AuditableEntity
+public class DraftInvoice : IAuditableEntity
 { 
+    public Guid Id { get; set; } =  Guid.NewGuid();
     public DateTime TransactionDate { get; set; }
     public decimal NdsRate { get; set; }
     public decimal TotalNdsAmount { get; set; }
@@ -24,6 +24,9 @@ public class DraftInvoice : AuditableEntity
     public Guid DepartmentId { get; set; }
     public Guid AggregationGroupId { get; set; }
     public ICollection<DraftInvoiceLine> Lines { get; set; } = new List<DraftInvoiceLine>();
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum DraftInvoiceStatus

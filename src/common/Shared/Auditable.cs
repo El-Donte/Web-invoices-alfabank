@@ -1,15 +1,8 @@
-namespace Auditable;
+namespace Shared;
 
-public abstract class AuditableEntity
+public interface IAuditableEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    
+    public Guid Id { get; set; } 
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
-}
-
-public abstract class AuditableUserEntity : AuditableEntity
-{
-    public Guid CreatedById { get; set; }
-    public Guid? LastModifiedById { get; set; }
 }

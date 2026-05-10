@@ -22,12 +22,12 @@ public class AggregationService(IAggregationRepository aggregationRepository,
 
         if (ungrouped.Count == 0) return 0;
         
-        var groups = ungrouped.GroupBy(t => t.OperationNumber);
+        var groups = ungrouped.GroupBy(t => new {t.OperationNumber, OperationDate = t.TransactionDate});
         var processedGroupCount = 0;
 
         foreach (var group in groups)
         {
-            var operationNumber = group.Key;
+            var operationNumber = group.Key.OperationNumber;
             var txIds = group.Select(t => t.Id).ToList();
             
             var aggGroup = await aggregationRepository.GetByOperationNumberAsync(operationNumber, ct) 
@@ -35,24 +35,21 @@ public class AggregationService(IAggregationRepository aggregationRepository,
             {
                 Id = Guid.NewGuid(),
                 OperationNumber = operationNumber,
-                TransactionDate = DateTime.UtcNow.Date,
+                TransactionDate = group.Key.OperationDate,
                 Status = AggregationStatus.Open,
                 ShipmentCount = 0,
                 AdvanceCount = 0,
                 CorrectiveCount = 0,
                 TotalCount = 0,
-                ReadyAt = null,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                DepartmentId = group.FirstOrDefault(t => t.DepartmentId != null)?.DepartmentId,
+                CounterpartyId = group.FirstOrDefault(t => t.CounterpartyId != null)?.CounterpartyId,
+                ReadyAt = null
             };
-
-            await rawTransactionRepository.AddAggregationGroupIdAsync(txIds, aggGroup.Id, ct);
             
             aggGroup.ShipmentCount += group.Count(t => t.Type == TransactionType.Shipment);
             aggGroup.AdvanceCount += group.Count(t => t.Type == TransactionType.Advance);
             aggGroup.CorrectiveCount += group.Count(t => t.Type == TransactionType.Corrective);
-            aggGroup.TotalCount = group.Count();
-            aggGroup.UpdatedAt = DateTime.UtcNow;
+            aggGroup.TotalCount = aggGroup.AdvanceCount + aggGroup.CorrectiveCount + aggGroup.ShipmentCount;
 
             if (aggGroup.TotalCount >= _settings.MinimumTransactionsForReady || IsTimeThresholdPassed(aggGroup))
             {
@@ -63,22 +60,26 @@ public class AggregationService(IAggregationRepository aggregationRepository,
 
             if (aggGroup.Status == AggregationStatus.Ready || aggGroup.ReadyAt.HasValue)
             {
-                var evt = new AggregationReadyEvent(aggGroup.Id, aggGroup.OperationNumber, 
+                var evt = new AggregationReadyEvent(aggGroup.Id, aggGroup.OperationNumber, aggGroup.TransactionDate.Value,
                     aggGroup.ReadyAt, aggGroup.ShipmentCount, 
                     aggGroup.AdvanceCount, aggGroup.CorrectiveCount, aggGroup.TotalCount);
                 
-                producer.ProduceAggregationEventAsync(evt, ct);
+                aggGroup.Status = AggregationStatus.Created;
+                
+                await producer.ProduceAggregationEventAsync(evt, ct);
                 
             //     context.OutboxEvents.Add(new OutboxEvent
             //     {
             //         Id = Guid.NewGuid(),
             //         EventType = nameof(AggregationReadyEvent),
             //         Payload = JsonSerializer.Serialize(evt),
-            //         Status = OutboxStatus.Pending,
-            //         CreatedAt = DateTime.UtcNow
+            //         Status = OutboxStatus.Pending
             //     });
             }
-
+            
+            await aggregationRepository.CreateOrUpdateAsync(aggGroup, ct);
+            await rawTransactionRepository.AddAggregationGroupIdAsync(txIds, aggGroup.Id, ct);
+            
             processedGroupCount++;
         }
         

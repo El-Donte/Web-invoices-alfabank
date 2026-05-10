@@ -9,7 +9,6 @@ public class DraftInvoiceLine
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal AmountWithoutNds { get; set; }
-    public decimal AmountWithNds { get; set; }
     public decimal NdsRate { get; set; } = 20m;
     public decimal NdsAmount { get; set; }
     public decimal TotalAmount { get; set; }

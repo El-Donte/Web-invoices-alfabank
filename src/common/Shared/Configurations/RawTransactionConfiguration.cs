@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Shared.Entities;
 
-namespace AbsIntegrationService.Infrastructure.Configurations;
+namespace Shared.Configurations;
 
 public class RawTransactionConfiguration : IEntityTypeConfiguration<RawTransaction>
 {
@@ -14,6 +14,7 @@ public class RawTransactionConfiguration : IEntityTypeConfiguration<RawTransacti
         b.Property(e => e.OperationNumber).HasColumnName("operation_number").HasMaxLength(64).IsRequired();
         b.Property(e => e.Type).HasConversion<string>().HasColumnName("type").HasMaxLength(16).IsRequired();
         b.Property(e => e.Date).HasColumnName("date");
+        b.Property(e => e.ProductCode).HasColumnName("product_code");
         b.Property(e => e.ProductName).HasColumnName("product_name").HasMaxLength(255);
         b.Property(e => e.CurrencyCode).HasColumnName("currency_code").HasMaxLength(32).IsRequired();
         b.Property(e => e.UnitMeasure).HasColumnName("unit_measure").HasMaxLength(32);

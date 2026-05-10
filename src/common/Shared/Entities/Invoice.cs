@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
-using Auditable;
+using Shared;
 
 namespace Shared.Entities;
 
-public class Invoice : AuditableEntity
+public class Invoice : IAuditableEntity
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Number { get; set; } = string.Empty;
     public DateTime IssueDate { get; set; }
     public decimal NdsRate { get; set; }
@@ -24,6 +25,9 @@ public class Invoice : AuditableEntity
     public Guid? LastAuthorId { get; set; }
     
     public ICollection<InvoiceLine> Lines { get; set; } = new List<InvoiceLine>();
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum InvoiceType
