@@ -5,7 +5,7 @@ using Npgsql;
 
 namespace InvoicesWebService.Infrastructure.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) : DbContext(options)
 {
     public DbSet<DraftInvoice> DraftInvoices => Set<DraftInvoice>();
     public DbSet<DraftInvoiceLine> DraftInvoiceLines => Set<DraftInvoiceLine>();
@@ -14,10 +14,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<InvoiceFieldChangeHistory> ChangeHistory => Set<InvoiceFieldChangeHistory>();
     public DbSet<User> Users => Set<User>();
     public DbSet<DepartmentAccess> DepartmentAccesses => Set<DepartmentAccess>();
-    public DbSet<AggregationGroup> AggregationGroups => Set<AggregationGroup>();
+    
+    
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
-    public DbSet<RawTransaction> RawTransactions => Set<RawTransaction>();
-    public DbSet<Counterparty> Counterparties => Set<Counterparty>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -40,13 +39,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
                 maxRetryDelay: TimeSpan.FromSeconds(10),
                 errorCodesToAdd: null);
             npgsqlOptions.CommandTimeout(30);
-        });
+            
+        }).EnableSensitiveDataLogging(false);
     }
     
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
-        b.HasDefaultSchema("public");
         
         b.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
@@ -60,6 +59,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         
         b.Entity<Invoice>().HasQueryFilter(e => 
             EF.Property<Guid>(e, "DepartmentId") == GetCurrentDepartmentId());
+        b.Entity<InvoiceLine>().HasQueryFilter(l => 
+            EF.Property<Guid>(l.Invoice, "DepartmentId") == GetCurrentDepartmentId());
+        
+        b.Ignore<RawTransaction>();
+        b.Ignore<Counterparty>();
+        b.Ignore<Department>();
+        b.Ignore<AggregationGroup>();
+        b.Ignore<ProcessingError>();
+        b.Ignore<ExportRecord>();
     }
 
     private static Guid GetCurrentDepartmentId() => 

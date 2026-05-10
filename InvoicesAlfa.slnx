@@ -11,6 +11,8 @@
     <File Path="src/common/compose.yaml" />
     <File Path="src\common\.env" />
     <File Path="src\common\.env.example" />
+    <File Path="src\common\prometheus.yml" />
+    <File Path="src\common\tempo.yaml" />
     <Project Path="src/common/Messaging.Kafka/Messaging.Kafka.csproj" />
     <Project Path="src\common\Shared\Shared.csproj" />
   </Folder>

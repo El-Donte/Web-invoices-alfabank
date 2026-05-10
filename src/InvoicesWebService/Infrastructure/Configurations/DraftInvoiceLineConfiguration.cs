@@ -11,6 +11,7 @@ public class DraftInvoiceLineConfiguration : IEntityTypeConfiguration<DraftInvoi
         b.ToTable("draft_invoice_line");
         b.HasKey(e => e.Id);
         
+        b.Property(e => e.Id).HasColumnName("id").IsRequired();
         b.Property(e => e.ProductName).HasColumnName("product_name").HasMaxLength(255).IsRequired();
         b.Property(e => e.ProductCode).HasColumnName("product_code").HasMaxLength(255).IsRequired();
         b.Property(e => e.Unit).HasColumnName("unit").HasMaxLength(32).IsRequired();
@@ -26,20 +27,16 @@ public class DraftInvoiceLineConfiguration : IEntityTypeConfiguration<DraftInvoi
 
         b.HasIndex(e => e.DraftInvoiceId).HasDatabaseName("IX_draft_invoice_line_draft");
         b.HasIndex(e => e.RawTransactionId).IsUnique().HasDatabaseName("UX_draft_invoice_line_raw_tx");
-
-        b.HasOne<DraftInvoice>()
-            .WithMany()
-            .HasForeignKey(e => e.DraftInvoiceId).
-            OnDelete(DeleteBehavior.Cascade);
         
         b.HasOne<RawTransaction>()
             .WithMany()
             .HasForeignKey(e => e.RawTransactionId)
             .OnDelete(DeleteBehavior.SetNull);
         
-        b.HasOne<DraftInvoice>()
+        b.HasOne(e => e.DraftInvoice)
             .WithMany(i => i.Lines)
             .HasForeignKey(l => l.DraftInvoiceId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
     }
 }

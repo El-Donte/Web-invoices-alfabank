@@ -11,6 +11,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         b.ToTable("invoice");
         b.HasKey(e => e.Id);
         
+        b.Property(e => e.Id).HasColumnName("id").IsRequired();
         b.Property(e => e.Number).HasColumnName("number").HasMaxLength(64).IsRequired();
         b.Property(e => e.IssueDate).HasColumnName("issue_date").IsRequired();
         b.Property(e => e.NdsRate).HasPrecision(6, 4).HasColumnName("nds_rate").IsRequired();
@@ -61,10 +62,5 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .WithMany()
             .HasForeignKey(e => e.LastAuthorId)
             .OnDelete(DeleteBehavior.SetNull);
-        
-        b.HasMany<InvoiceLine>()
-            .WithOne() 
-            .HasForeignKey(l => l.InvoiceId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

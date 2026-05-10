@@ -11,6 +11,7 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
         b.ToTable("invoice_line");
         b.HasKey(e => e.Id);
         
+        b.Property(e => e.Id).HasColumnName("id").IsRequired();
         b.Property(e => e.ProductName).HasColumnName("product_name").HasMaxLength(255).IsRequired();
         b.Property(e => e.ProductCode).HasColumnName("product_code").HasMaxLength(255).IsRequired();
         b.Property(e => e.Unit).HasColumnName("unit").HasMaxLength(32).IsRequired();
@@ -26,9 +27,10 @@ public class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceLine>
         b.HasIndex(e => e.InvoiceId)
             .HasDatabaseName("IX_invoice_line_invoice");
         
-        b.HasOne<Invoice>()
+        b.HasOne(e => e.Invoice)
             .WithMany(i => i.Lines)
             .HasForeignKey(l => l.InvoiceId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
     }
 }

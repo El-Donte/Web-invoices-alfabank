@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using AbsIntegrationService.Metrics;
 using Shared.Contracts;
 using AbsIntegrationService.Services.Interfaces;
+using App.Metrics;
 using Confluent.Kafka;
 using Messaging.Kafka;
 using Messaging.Kafka.Consumer;
@@ -121,18 +124,24 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
             }
         }
         
+        var sw = Stopwatch.StartNew();
         try
         {
             var result = await ingestionService.ProcessBatchAsync(parsedBatch, ct);
-            CommitOffsets(batch);
 
-            _logger.LogInformation(
-                "Batch processed. Total: {Total}, Inserted: {Inserted}, Duplicates: {Dups}, ValidationErrors: {Errs}",
-                result.Total, result.Inserted, result.Duplicates, result.ValidationErrors);
+            CommitOffsets(batch);
+            sw.Stop();
+            
+            AppMetrics.RecordMessage("success");
+            AppMetrics.RecordBatchDuration(sw.Elapsed.TotalSeconds);
+            if (result.ValidationErrors > 0) IngestionMetrics.RecordValidation("business_rules");
+            if (result.Duplicates > 0) IngestionMetrics.RecordDuplicate();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DB SaveChanges failed for batch. Offsets NOT committed. Kafka will redeliver.");
+            sw.Stop();
+            AppMetrics.RecordMessage("db_error");
+            AppMetrics.RecordDbError("SaveChanges", ex.GetType().Name);
             
             foreach (var (payload, msg) in parsedBatch)
             {

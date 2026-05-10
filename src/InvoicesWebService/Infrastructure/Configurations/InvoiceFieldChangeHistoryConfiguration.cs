@@ -11,6 +11,7 @@ public class InvoiceFieldChangeHistoryConfiguration : IEntityTypeConfiguration<I
         b.ToTable("invoice_field_change_history");
         b.HasKey(e => e.Id);
         
+        b.Property(e => e.Id).HasColumnName("id").IsRequired();
         b.Property(e => e.FieldName).HasColumnName("field_name").HasMaxLength(128).IsRequired();
         b.Property(e => e.OldValue).HasColumnName("old_value").HasColumnType("text").IsRequired();
         b.Property(e => e.NewValue).HasColumnName("new_value").HasColumnType("text").IsRequired();

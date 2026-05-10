@@ -9,7 +9,7 @@ public class RawTransactionReader(AppDbContext context) : IRawTransactionReader
 {
     public async Task<IReadOnlyList<RawTransaction>> GetByGroupIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await context.RawTransactions
+        return await context.Set<RawTransaction>()
             .AsNoTracking()
             .Where(t => t.AggregationGroupId == id && t.Status == TransactionStatus.Processed)
             .ToListAsync(ct);

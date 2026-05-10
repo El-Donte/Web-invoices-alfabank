@@ -5,13 +5,11 @@ using Shared.Entities;
 
 namespace AbsIntegrationService.Infrastructure.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) : DbContext(options)
 {
     public DbSet<RawTransaction> RawTransactions => Set<RawTransaction>();
     public DbSet<AggregationGroup> AggregationGroups => Set<AggregationGroup>();
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
-    public DbSet<Counterparty> Counterparties => Set<Counterparty>(); 
-    public DbSet<Department> Departments => Set<Department>();
     
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -26,7 +24,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
                 dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Require;
                 dataSourceBuilder.ConnectionStringBuilder.Multiplexing = true;
                 dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 150;
-                dataSourceBuilder.ConnectionStringBuilder.KeepAlive = 30;
             });
             
             npgsqlOptions.EnableRetryOnFailure(
@@ -45,8 +42,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         b.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         
         b.ApplyConfigurationsFromAssembly(typeof(AggregationGroupConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(RawTransactionConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(ProcessingErrorConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(CounterpartyConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(DepartmentConfiguration).Assembly);
-        b.ApplyConfigurationsFromAssembly(typeof(RawTransactionConfiguration).Assembly);
+        
+        b.Ignore<User>();
+        b.Ignore<DraftInvoice>();
+        b.Ignore<DraftInvoiceLine>();
+        b.Ignore<Invoice>();
+        b.Ignore<InvoiceLine>();
+        b.Ignore<ExportRecord>();
+        b.Ignore<InvoiceFieldChangeHistory>();
+        b.Ignore<DepartmentAccess>();
     }
 }

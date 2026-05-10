@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'dotnet-services'
+    static_configs:
+      - targets: ['abs-ingestion-service:8080', 'web-invoice-service:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'cadvisor'
+    static_configs: [{ targets: ['cadvisor:8080'] }]

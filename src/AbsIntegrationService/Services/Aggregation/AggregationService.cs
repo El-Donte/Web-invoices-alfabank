@@ -2,6 +2,7 @@ using AbsIntegrationService.Infrastructure.Repositories;
 using AbsIntegrationService.Services.Aggregation;
 using AbsIntegrationService.Services.Interfaces;
 using AbsIntegrationService.Services.Kafka;
+using Microsoft.Extensions.Options;
 using Shared.Contracts.Events;
 using Shared.Entities;
 
@@ -10,13 +11,14 @@ namespace AbsIntegrationService.Services;
 public class AggregationService(IAggregationRepository aggregationRepository, 
     IRawTransactionRepository rawTransactionRepository,
     IAggregationReadyEventProducer producer,
-    AggregationWorkerSettings settings)
+    IOptions<AggregationWorkerSettings> settings)
     : IAggregationService
 {
 
+    private readonly AggregationWorkerSettings _settings = settings.Value;
     public async Task<int> ProcessPendingBatchesAsync(CancellationToken ct = default)
     {
-        var ungrouped = await rawTransactionRepository.GetUngroupedTransactionsAsync(settings.BatchSize, ct);
+        var ungrouped = await rawTransactionRepository.GetUngroupedTransactionsAsync(_settings.BatchSize, ct);
 
         if (ungrouped.Count == 0) return 0;
         
@@ -52,7 +54,7 @@ public class AggregationService(IAggregationRepository aggregationRepository,
             aggGroup.TotalCount = group.Count();
             aggGroup.UpdatedAt = DateTime.UtcNow;
 
-            if (aggGroup.TotalCount >= settings.MinimumTransactionsForReady || IsTimeThresholdPassed(aggGroup))
+            if (aggGroup.TotalCount >= _settings.MinimumTransactionsForReady || IsTimeThresholdPassed(aggGroup))
             {
                 aggGroup.Status = AggregationStatus.Ready;
                 aggGroup.ReadyAt = DateTime.UtcNow;
@@ -85,5 +87,5 @@ public class AggregationService(IAggregationRepository aggregationRepository,
 
     private bool IsTimeThresholdPassed(AggregationGroup group) =>
         group.LastProcessedAt.HasValue 
-        && (DateTime.UtcNow - group.LastProcessedAt.Value).TotalMinutes >= settings.TimeoutMinutes;
+        && (DateTime.UtcNow - group.LastProcessedAt.Value).TotalMinutes >= _settings.TimeoutMinutes;
 }

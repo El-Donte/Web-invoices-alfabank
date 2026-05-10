@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Confluent.Kafka;
+using InvoicesWebService.Metrics;
 using InvoicesWebService.Services.Interfaces;
 using Messaging.Kafka;
 using Messaging.Kafka.Consumer;
@@ -70,21 +72,26 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
     private async Task ConsumeAsync(ConsumeResult<string, AggregationReadyEvent> result, CancellationToken ct)
     {
         var evt = result.Message.Value;
-        _logger.LogInformation("Received AggregationReadyEvent for group {GroupId}", evt.AggregationGroupId);
 
         using var scope = _serviceProvider.CreateScope();
         var draftService = scope.ServiceProvider.GetRequiredService<IDraftInvoiceService>();
         var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
-
+        
+        var sw = Stopwatch.StartNew();
         try
         {
             await draftService.ProcessAggregationReadyAsync(evt, ct);
             
             _consumer.Commit(result);
-            _logger.LogInformation("Offset committed for group {GroupId}", evt.AggregationGroupId);
+            sw.Stop();
+            InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "success");
         }
         catch (Exception ex)
         {
+            sw.Stop();
+            InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "failed");
+            InvoiceMetrics.RecordDraftError(ex.GetType().Name);
+            
             await errorService.LogAsync(new ErrorLogEntry(
                 ProcessingStage.Creation, 
                 "DRAFT_CREATION_ERROR", 
@@ -92,11 +99,6 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
                 "", 
                 true, 
                 evt.AggregationGroupId), ct);
-            
-            _logger.LogError(
-                ex, 
-                "Draft creation failed for group {GroupId}. Offset NOT committed. Kafka will redeliver.", 
-                evt.AggregationGroupId);
         }
     }
 }

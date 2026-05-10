@@ -26,10 +26,10 @@ public class ExportRecordConfiguration : IEntityTypeConfiguration<ExportRecord>
         
         b.HasIndex(e => new { e.Status, e.LastAttemptAt })
             .HasDatabaseName("IX_export_record_status_retry");
-        
-        b.HasOne<Invoice>()
-            .WithMany()
-            .HasForeignKey(e => e.InvoiceId)
-            .OnDelete(DeleteBehavior.Cascade);
+        //
+        // b.HasOne<Invoice>()
+        //     .WithMany()
+        //     .HasForeignKey(e => e.InvoiceId)
+        //     .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -11,6 +11,7 @@ public class DraftInvoiceConfiguration : IEntityTypeConfiguration<DraftInvoice>
         b.ToTable("draft_invoice");
         b.HasKey(e => e.Id);
         
+        b.Property(e => e.Id).HasColumnName("id").IsRequired();
         b.Property(e => e.TransactionDate).HasColumnName("transaction_date").IsRequired();
         b.Property(e => e.NdsRate).HasPrecision(6, 4).HasColumnName("nds_rate").IsRequired();
         b.Property(e => e.TotalNdsAmount).HasPrecision(16, 4).HasColumnName("total_nds_amount").IsRequired();
@@ -42,10 +43,5 @@ public class DraftInvoiceConfiguration : IEntityTypeConfiguration<DraftInvoice>
             .WithMany()
             .HasForeignKey(e => e.AggregationGroupId)
             .OnDelete(DeleteBehavior.Restrict);
-        
-        b.HasMany<DraftInvoiceLine>()
-            .WithOne() 
-            .HasForeignKey(l => l.DraftInvoiceId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }
