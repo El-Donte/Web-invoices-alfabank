@@ -42,6 +42,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
             
         })
             .AddInterceptors(new AuditInterceptor())
+            .AddInterceptors(new EfCoreMetricsInterceptor())
             .EnableSensitiveDataLogging(false);
     }
     

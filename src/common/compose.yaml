@@ -116,22 +116,6 @@ services:
       mem_limit: 512m
       cpus: 0.5
 
-    cadvisor:
-      image: gcr.io/cadvisor/cadvisor:v0.49.1
-      container_name: cadvisor
-      privileged: true
-      volumes:
-        - /:/rootfs:ro
-        - /var/run:/var/run:ro
-        - /sys:/sys:ro
-        - /var/lib/docker:/var/lib/docker:ro
-      ports:
-        - "8082:8082"
-      networks:
-        - monitoring
-      restart: unless-stopped
-      mem_limit: 256m
-
     grafana:
       image: grafana/grafana:10.4.0
       container_name: grafana
@@ -162,19 +146,20 @@ services:
           condition: service_healthy
       environment:
         - ASPNETCORE_ENVIRONMENT=Development
-        - OTEL_SERVICE_NAME=abs-ingestion-service
+        - ASPNETCORE_URLS=http://+:8084
+        - OTEL_SERVICE_NAME=abs-integration-service
       networks:
         - monitoring
         - default
       ports:
-        - "5001:8080"
+        - "5010:8084"
       restart: unless-stopped
       
     web-invoice-service:
       build:
         context: ../InvoicesWebService
         dockerfile: Dockerfile
-      container_name: invoice-service
+      container_name: web-invoice-service
       depends_on:
         postgres:
           condition: service_healthy
@@ -182,12 +167,13 @@ services:
           condition: service_healthy
       environment:
         - ASPNETCORE_ENVIRONMENT=Development
+        - ASPNETCORE_URLS=http://+:8085
         - OTEL_SERVICE_NAME=web-invoice-service
       networks:
         - monitoring
         - default
       ports:
-        - "5002:8081"
+        - "5011:8085"
       restart: unless-stopped
 
 networks:

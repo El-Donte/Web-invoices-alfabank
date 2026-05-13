@@ -1,4 +1,5 @@
 using AbsIntegrationService.Infrastructure.Repositories;
+using AbsIntegrationService.Metrics;
 using AbsIntegrationService.Services.Aggregation;
 using AbsIntegrationService.Services.Interfaces;
 using AbsIntegrationService.Services.Kafka;
@@ -29,7 +30,7 @@ public class AggregationService(IAggregationRepository aggregationRepository,
         {
             var operationNumber = group.Key.OperationNumber;
             var txIds = group.Select(t => t.Id).ToList();
-            
+
             var aggGroup = await aggregationRepository.GetByOperationNumberAsync(operationNumber, ct) 
                            ?? new AggregationGroup
             {
@@ -51,14 +52,15 @@ public class AggregationService(IAggregationRepository aggregationRepository,
             aggGroup.CorrectiveCount += group.Count(t => t.Type == TransactionType.Corrective);
             aggGroup.TotalCount = aggGroup.AdvanceCount + aggGroup.CorrectiveCount + aggGroup.ShipmentCount;
 
-            if (aggGroup.TotalCount >= _settings.MinimumTransactionsForReady || IsTimeThresholdPassed(aggGroup))
+            if ((aggGroup.TotalCount >= _settings.MinimumTransactionsForReady || IsTimeThresholdPassed(aggGroup)) && aggGroup.ReadyAt == null)
             {
+                IngestionMetrics.RecordAggregationGroup();
                 aggGroup.Status = AggregationStatus.Ready;
                 aggGroup.ReadyAt = DateTime.UtcNow;
             }
             
 
-            if (aggGroup.Status == AggregationStatus.Ready || aggGroup.ReadyAt.HasValue)
+            if (aggGroup.Status == AggregationStatus.Ready)
             {
                 var evt = new AggregationReadyEvent(aggGroup.Id, aggGroup.OperationNumber, aggGroup.TransactionDate.Value,
                     aggGroup.ReadyAt, aggGroup.ShipmentCount, 

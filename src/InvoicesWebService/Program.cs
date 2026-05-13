@@ -8,7 +8,7 @@ using Messaging.Kafka;
 using Messaging.Kafka.Producer;
 using Npgsql;
 using Shared;
-using OpenTelemetry;
+using Prometheus;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -18,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 //db
 builder.Services.AddSingleton<AuditInterceptor>();
+builder.Services.AddSingleton<EfCoreMetricsInterceptor>();
 builder.Services.AddDbContext<AppDbContext>();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
@@ -31,7 +32,6 @@ builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
 builder.Services.AddScoped<IDraftInvoiceService, DraftInvoiceService>();
 
 //kafka
-builder.Services.AddProducer<InvoiceTestCreatedMessage>(builder.Configuration.GetSection("Kafka:Abs"));
 builder.Services.AddConsumer<AggregationReadyEvent, AggregationReadyConsumer>
     (builder.Configuration.GetSection("Kafka:AggregationGroup"));
 
@@ -51,11 +51,13 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("InvoicesWebService"))
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
+        
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddProcessInstrumentation()
         .AddNpgsqlInstrumentation()
         .AddMeter("InvoiceSystem")
+        .AddMeter("InvoiceWebService")
         .AddPrometheusExporter())
     .WithTracing(tracing => 
         tracing
@@ -66,13 +68,14 @@ builder.Services.AddOpenTelemetry()
             .AddSource("InvoiceSystem")
             .AddOtlpExporter(o => 
             {
-                o.Endpoint = new Uri("http://localhost:4318");
+                o.Endpoint = new Uri("http://tempo:4318");
                 o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
             }));
 
 var app = builder.Build();
 
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
+app.MapMetrics();
 
 if (app.Environment.IsDevelopment())
 {
@@ -80,12 +83,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.MapPost("/create-invoice", async (IKafkaProducer<InvoiceTestCreatedMessage> kafkaProducer, CancellationToken token) =>
-{
-    var test = new InvoiceTestCreatedMessage();
-    await kafkaProducer.ProduceAsync(test, test.OperationNumber ,token);
-});
 
 app.UseRouting();
 app.MapControllers();

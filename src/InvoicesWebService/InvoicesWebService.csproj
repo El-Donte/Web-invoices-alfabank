@@ -36,6 +36,8 @@
       <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
       <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.15.1-beta.1" />
       <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+      <PackageReference Include="prometheus-net" Version="8.2.1" />
+      <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.7" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.7" />
     </ItemGroup>

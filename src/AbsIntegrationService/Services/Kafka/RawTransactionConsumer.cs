@@ -2,7 +2,7 @@ using System.Diagnostics;
 using AbsIntegrationService.Metrics;
 using Shared.Contracts;
 using AbsIntegrationService.Services.Interfaces;
-using App.Metrics;
+using Shared.Metrics;
 using Confluent.Kafka;
 using Messaging.Kafka;
 using Messaging.Kafka.Consumer;
@@ -77,7 +77,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
                 }
                 catch (ConsumeException ex) when (ex.Error.IsFatal)
                 {
-                    _logger.LogCritical(ex, "Fatal Kafka consumer error. Stopping.");
+                    IngestionMetrics.RecordMessage("CRITICAL_ERROR");
                     break;
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -86,7 +86,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unexpected error in consume loop");
+                    IngestionMetrics.RecordMessage("ERROR");
                 }
             }
             
@@ -120,6 +120,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
             }
             catch (Exception ex)
             {
+                IngestionMetrics.RecordMessage("DESERIALIZATION_FAILURE");
                 _logger.LogError(ex, "Failed to deserialize message. Offset will be committed to avoid poison pill.");
             }
         }
@@ -132,15 +133,15 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
             CommitOffsets(batch);
             sw.Stop();
             
-            AppMetrics.RecordMessage("success");
-            AppMetrics.RecordBatchDuration(sw.Elapsed.TotalSeconds);
-            if (result.ValidationErrors > 0) IngestionMetrics.RecordValidation("business_rules");
+            IngestionMetrics.RecordMessage("success");
+            IngestionMetrics.RecordBatchDuration(sw.Elapsed.TotalSeconds);
+            if (result.ValidationErrors > 0) IngestionMetrics.RecordValidationError("business_rules");
             if (result.Duplicates > 0) IngestionMetrics.RecordDuplicate();
         }
         catch (Exception ex)
         {
             sw.Stop();
-            AppMetrics.RecordMessage("db_error");
+            IngestionMetrics.RecordMessage("db_error");
             AppMetrics.RecordDbError("SaveChanges", ex.GetType().Name);
             
             foreach (var (payload, msg) in parsedBatch)

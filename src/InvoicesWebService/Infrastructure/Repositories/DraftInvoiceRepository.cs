@@ -14,12 +14,12 @@ public class DraftInvoiceRepository(AppDbContext context) : IDraftInvoiceReposit
            .AnyAsync(d => d.AggregationGroupId == id, ct);
     }
 
-    public async Task<DraftInvoice?> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<DraftInvoice?> GetByGroupIdAsync(Guid id, CancellationToken ct)
     {
         var entity = await context.DraftInvoices
             .AsNoTracking()
             .Include(d => d.Lines)
-            .FirstOrDefaultAsync(d => d.Id == id, ct);
+            .FirstOrDefaultAsync(d => d.AggregationGroupId == id, ct);
 
         return entity;
     }

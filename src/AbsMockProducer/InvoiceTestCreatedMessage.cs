@@ -1,13 +1,13 @@
 using Shared.Entities;
 
-namespace InvoicesWebService.Services.Kafka;
+namespace AbsMockProducer;
 
 public class InvoiceTestCreatedMessage
 {
     public Guid MessageId { get; set; } = Guid.NewGuid();
 
     // Основные идентификаторы операции
-    public string OperationNumber { get; set; } = "100"; 
+    public string OperationNumber { get; set; } = "120"; 
     public DateTime OperationDate { get; set; } =  DateTime.UtcNow;
     public TransactionType Type { get; set; } = TransactionType.Shipment;
 

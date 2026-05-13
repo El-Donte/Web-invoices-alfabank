@@ -12,20 +12,21 @@ public sealed class DraftInvoiceService(
 {
     public async Task ProcessAggregationReadyAsync(AggregationReadyEvent evt, CancellationToken ct = default)
     {
-
-        if (await draftRepo.ExistsByGroupIdAsync(evt.AggregationGroupId, ct))
-        {
-            logger.LogDebug("Draft already exists for group {GroupId}. Idempotent skip.", evt.AggregationGroupId);
-            return;
-        }
-        
         var transactions = await txRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
         if (transactions.Count == 0)
             throw new InvalidOperationException($"No processed transactions found for group {evt.AggregationGroupId}");
+
+        var draft = await draftRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
         
-        var draft = DraftInvoiceFactory.Create(evt, transactions);
+        if (draft is null)
+        {
+            draft = DraftInvoiceFactory.Create(evt, transactions);
+        }
+        else
+        {
+            DraftInvoiceFactory.Update(draft, transactions);
+        }
         
         await draftRepo.AddWithLinesAsync(draft, ct);
-        logger.LogInformation("DraftInvoice {DraftId} created for group {GroupId}.", draft.Id, evt.AggregationGroupId);
     }
 }

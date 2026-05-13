@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>AbsMockProducer</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\common\Messaging.Kafka\Messaging.Kafka.csproj" />
+      <ProjectReference Include="..\common\Shared\Shared.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Shared.Contracts;
 using AbsIntegrationService.Infrastructure.Repositories;
+using AbsIntegrationService.Metrics;
 using AbsIntegrationService.Services.Interfaces;
 using Shared;
 using Shared.Entities;
@@ -32,6 +33,7 @@ public sealed class TransactionIngestionService(
             if (!string.IsNullOrEmpty(validationError))
             {
                 validationErrorCount++;
+                IngestionMetrics.RecordMessage("validation_error");
                 await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "VALIDATION_FAILED", 
                     validationError, rawPayload, Retryable: false), ct);
                 continue;

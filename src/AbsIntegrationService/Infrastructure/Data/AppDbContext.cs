@@ -36,6 +36,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
             npgsqlOptions.CommandTimeout(15);
         })
             .AddInterceptors(new AuditInterceptor())
+            .AddInterceptors(new EfCoreMetricsInterceptor())
             .EnableSensitiveDataLogging(false);
     }
     

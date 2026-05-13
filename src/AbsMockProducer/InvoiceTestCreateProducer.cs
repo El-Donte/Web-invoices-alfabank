@@ -1,6 +1,6 @@
 using Messaging.Kafka.Producer;
 
-namespace InvoicesWebService.Services.Kafka;
+namespace AbsMockProducer;
 
 public class InvoiceTestCreateProducer(IKafkaProducer<InvoiceTestCreatedMessage>  kafkaProducer) : IInvoiceTestCreatedProducer
 {

@@ -5,12 +5,12 @@ using AbsIntegrationService.Services.Aggregation;
 using AbsIntegrationService.Services.Interfaces;
 using AbsIntegrationService.Services.Kafka;
 using AbsIntegrationService.Workers;
-using OpenTelemetry;
 using Messaging.Kafka;
 using Npgsql;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Prometheus;
 using Shared;
 using Shared.Contracts;
 using Shared.Contracts.Events;
@@ -19,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 //db
 builder.Services.AddSingleton<AuditInterceptor>();
+builder.Services.AddSingleton<EfCoreMetricsInterceptor>();
 builder.Services.AddDbContext<AppDbContext>();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
@@ -56,6 +57,7 @@ builder.Services.AddOpenTelemetry()
         .AddProcessInstrumentation()
         .AddNpgsqlInstrumentation()
         .AddMeter("InvoiceSystem")
+        .AddMeter("AbsIntegrationService")
         .AddPrometheusExporter())
     .WithTracing(tracing =>
         tracing
@@ -66,9 +68,45 @@ builder.Services.AddOpenTelemetry()
             .AddSource("InvoiceSystem")
             .AddOtlpExporter(o =>
             {
-                o.Endpoint = new Uri("http://localhost:4318");
+                o.Endpoint = new Uri("http://tempo:4318");
                 o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
             }));
+
+// builder.Services.AddOpenTelemetry()
+//     .ConfigureResource(resourceBuilder =>
+//     {
+//         resourceBuilder
+//             .AddService("YourApplicationName")
+//             .AddAttributes(new Dictionary<string, object>
+//             {
+//                 ["deployment.environment"] = builder.Environment.EnvironmentName.ToLower()
+//             });
+//     })
+//     .WithMetrics(meterProviderBuilder =>
+//     {
+//         meterProviderBuilder.AddAspNetCoreInstrumentation();
+//         meterProviderBuilder.AddHttpClientInstrumentation();
+//         meterProviderBuilder.AddRuntimeInstrumentation();
+//         meterProviderBuilder.AddSqlClientInstrumentation();
+//         meterProviderBuilder.AddProcessInstrumentation();
+//         
+//         string[] diagnosticsMetrics =
+//         [
+//             "System.Net.Http",
+//             "System.Net.NameResolution",
+//             "System.Threading",
+//             "System.Runtime",
+//             "Microsoft.EntityFrameworkCore"
+//         ];
+//     
+//         meterProviderBuilder.AddMeter(diagnosticsMetrics);
+//
+//         meterProviderBuilder.AddPrometheusExporter(options =>
+//         {
+//             options.ScrapeEndpointPath = "/metrics";
+//             options.ScrapeResponseCacheDurationMilliseconds = 1000;
+//         });
+//     });
 
 builder.Services.AddControllers();
 
@@ -76,5 +114,6 @@ var app = builder.Build();
 
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
 app.UseRouting();
+app.MapMetrics();
 app.MapControllers();
 app.Run();
