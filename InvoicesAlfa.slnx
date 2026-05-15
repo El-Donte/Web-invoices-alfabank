@@ -18,6 +18,7 @@
     <Project Path="src\common\Shared\Shared.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <File Path="tests\script.js" />
     <File Path="tests\test_script.js" />
   </Folder>
 </Solution>

@@ -4,7 +4,7 @@ namespace Shared.Entities;
 
 public class AggregationGroup : IAuditableEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; }
     
     public string OperationNumber { get; set; } = string.Empty;
     public DateTime? TransactionDate { get; set; }

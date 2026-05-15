@@ -111,6 +111,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
 
         var parsedBatch =  new List<(string RawPayload, AbsMessage Message)>();
         
+        var sw = Stopwatch.StartNew();
         foreach (var msg in batch)
         {
             try
@@ -124,40 +125,50 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
                 _logger.LogError(ex, "Failed to deserialize message. Offset will be committed to avoid poison pill.");
             }
         }
-        
-        var sw = Stopwatch.StartNew();
+
         try
         {
             var result = await ingestionService.ProcessBatchAsync(parsedBatch, ct);
 
             CommitOffsets(batch);
-            sw.Stop();
-            
-            IngestionMetrics.RecordMessage("success");
-            IngestionMetrics.RecordBatchDuration(sw.Elapsed.TotalSeconds);
+
+            IngestionMetrics.RecordMessage("success", result.Total);
             if (result.ValidationErrors > 0) IngestionMetrics.RecordValidationError("business_rules");
             if (result.Duplicates > 0) IngestionMetrics.RecordDuplicate();
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            IngestionMetrics.RecordMessage("db_error");
+            IngestionMetrics.RecordMessage("db_error", batch.Count);
             AppMetrics.RecordDbError("SaveChanges", ex.GetType().Name);
-            
+
             foreach (var (payload, msg) in parsedBatch)
             {
-                await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "DB_SAVE_FAILED", 
-                    ex.Message,  payload, Retryable: true), ct);
+                await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "DB_SAVE_FAILED",
+                    ex.Message, payload, Retryable: true), ct);
             }
+        }
+        finally
+        {
+            sw.Stop();
+            IngestionMetrics.RecordRawTransactionDuration(sw.Elapsed.TotalSeconds);
         }
     }
 
     private void CommitOffsets(List<ConsumeResult<string, string>> batch)
     {
-        var offsetsToCommit = batch
-            .GroupBy(r => r.TopicPartition)
-            .Select(g => new TopicPartitionOffset(g.Key, g.Max(r => r.Offset) + 1));
+        if (batch == null || batch.Count == 0) return;
         
+        var validResults = batch.Where(r => r != null);
+    
+        var offsetsToCommit = validResults
+            .GroupBy(r => r.TopicPartition)
+            .Select(g =>
+            {
+                var maxOffset = g.Max(r => r.Offset.Value);
+                
+                return new TopicPartitionOffset(g.Key, maxOffset + 1);
+            });
+
         _consumer.Commit(offsetsToCommit);
     }
 }

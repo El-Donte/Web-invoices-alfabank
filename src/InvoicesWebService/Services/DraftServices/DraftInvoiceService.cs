@@ -6,8 +6,7 @@ namespace InvoicesWebService.Services.DraftServices;
 
 public sealed class DraftInvoiceService(
     IDraftInvoiceRepository draftRepo,
-    IRawTransactionReader txRepo,
-    ILogger<DraftInvoiceService> logger)
+    IRawTransactionReader txRepo)
     : IDraftInvoiceService
 {
     public async Task ProcessAggregationReadyAsync(AggregationReadyEvent evt, CancellationToken ct = default)

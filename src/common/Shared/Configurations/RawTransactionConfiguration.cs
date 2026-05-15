@@ -46,6 +46,13 @@ public class RawTransactionConfiguration : IEntityTypeConfiguration<RawTransacti
         b.HasIndex(e => new { e.OperationNumber, e.Type })
             .HasDatabaseName("IX_rawtransaction_drf_type");
 
+        b.HasIndex(e => new { e.AggregationGroupId, e.Date })
+            .HasDatabaseName("IX_rawtransaction_ungrouped_date")
+            .HasFilter("aggregation_group_id IS NULL");
+
+        b.HasIndex(e => new { e.OperationNumber, e.Date })
+            .HasDatabaseName("IX_rawtransaction_operation_lookup");
+
         b.HasOne<AggregationGroup>()
             .WithMany()
             .HasForeignKey(e => e.AggregationGroupId)

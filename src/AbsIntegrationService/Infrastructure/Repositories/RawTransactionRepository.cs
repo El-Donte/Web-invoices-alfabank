@@ -22,6 +22,7 @@ public class RawTransactionRepository(AppDbContext context) : IRawTransactionRep
         if (batchSize <= 0) return [];
         
         var ungrouped = await context.RawTransactions
+            .AsNoTracking()
             .Where(t => t.Status == TransactionStatus.Processed && t.AggregationGroupId == null)
             .OrderBy(t => t.ReceivedAt)
             .Take(batchSize)

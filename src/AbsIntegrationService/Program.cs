@@ -56,7 +56,6 @@ builder.Services.AddOpenTelemetry()
         .AddRuntimeInstrumentation()
         .AddProcessInstrumentation()
         .AddNpgsqlInstrumentation()
-        .AddMeter("InvoiceSystem")
         .AddMeter("AbsIntegrationService")
         .AddPrometheusExporter())
     .WithTracing(tracing =>
@@ -65,48 +64,12 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddEntityFrameworkCoreInstrumentation()
             .AddNpgsql()
-            .AddSource("InvoiceSystem")
+            .AddSource("AbsIntegrationService")
             .AddOtlpExporter(o =>
             {
                 o.Endpoint = new Uri("http://tempo:4318");
                 o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
             }));
-
-// builder.Services.AddOpenTelemetry()
-//     .ConfigureResource(resourceBuilder =>
-//     {
-//         resourceBuilder
-//             .AddService("YourApplicationName")
-//             .AddAttributes(new Dictionary<string, object>
-//             {
-//                 ["deployment.environment"] = builder.Environment.EnvironmentName.ToLower()
-//             });
-//     })
-//     .WithMetrics(meterProviderBuilder =>
-//     {
-//         meterProviderBuilder.AddAspNetCoreInstrumentation();
-//         meterProviderBuilder.AddHttpClientInstrumentation();
-//         meterProviderBuilder.AddRuntimeInstrumentation();
-//         meterProviderBuilder.AddSqlClientInstrumentation();
-//         meterProviderBuilder.AddProcessInstrumentation();
-//         
-//         string[] diagnosticsMetrics =
-//         [
-//             "System.Net.Http",
-//             "System.Net.NameResolution",
-//             "System.Threading",
-//             "System.Runtime",
-//             "Microsoft.EntityFrameworkCore"
-//         ];
-//     
-//         meterProviderBuilder.AddMeter(diagnosticsMetrics);
-//
-//         meterProviderBuilder.AddPrometheusExporter(options =>
-//         {
-//             options.ScrapeEndpointPath = "/metrics";
-//             options.ScrapeResponseCacheDurationMilliseconds = 1000;
-//         });
-//     });
 
 builder.Services.AddControllers();
 

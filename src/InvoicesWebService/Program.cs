@@ -56,7 +56,6 @@ builder.Services.AddOpenTelemetry()
         .AddRuntimeInstrumentation()
         .AddProcessInstrumentation()
         .AddNpgsqlInstrumentation()
-        .AddMeter("InvoiceSystem")
         .AddMeter("InvoiceWebService")
         .AddPrometheusExporter())
     .WithTracing(tracing => 
@@ -65,7 +64,7 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddEntityFrameworkCoreInstrumentation()
             .AddNpgsql()
-            .AddSource("InvoiceSystem")
+            .AddSource("InvoiceWebService")
             .AddOtlpExporter(o => 
             {
                 o.Endpoint = new Uri("http://tempo:4318");
