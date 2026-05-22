@@ -20,5 +20,6 @@
   <Folder Name="/tests/">
     <File Path="tests\script.js" />
     <File Path="tests\test_script.js" />
+    <Project Path="tests/LoadGenerator/LoadGenerator.csproj" />
   </Folder>
 </Solution>

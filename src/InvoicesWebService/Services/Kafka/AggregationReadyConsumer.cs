@@ -13,6 +13,8 @@ namespace InvoicesWebService.Services.Kafka;
 
 public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
 {
+    private readonly SemaphoreSlim _concurrencyLimiter = new(16, 32);
+    
     public AggregationReadyConsumer(
         IServiceProvider serviceProvider,
         KafkaSettings settings,
@@ -20,6 +22,9 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
         KafkaJsonDeserializer<AggregationReadyEvent>  deserializer
         ) : base(settings, serviceProvider, logger)
     {
+        _config.FetchMinBytes = 1024;
+        _config.FetchMaxBytes = 10_485_760;
+        
         _consumer = new ConsumerBuilder<string, AggregationReadyEvent>(_config)
             .SetErrorHandler((_, e) => _logger.LogError("Kafka error: {Reason} | Code: {Code}", e.Reason, e.Code))
             .SetPartitionsAssignedHandler((c, partitions) =>
@@ -45,7 +50,10 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
                     var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
                     if (result is null) continue;
 
-                    await ConsumeAsync(result, stoppingToken);
+                    _ = Task.Run(async () =>
+                    {
+                        await ConsumeAsync(result, stoppingToken);
+                    }, stoppingToken);
                 }
                 catch (ConsumeException ex) when (ex.Error.IsFatal)
                 {
@@ -72,6 +80,7 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
 
     private async Task ConsumeAsync(ConsumeResult<string, AggregationReadyEvent> result, CancellationToken ct)
     {
+        await _concurrencyLimiter.WaitAsync(ct);
         var evt = result.Message.Value;
 
         using var scope = _serviceProvider.CreateScope();
@@ -82,7 +91,7 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
         try
         {
             await draftService.ProcessAggregationReadyAsync(evt, ct);
-            
+
             _consumer.Commit(result);
             sw.Stop();
             InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "success");
@@ -92,14 +101,18 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
             sw.Stop();
             InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "failed");
             InvoiceMetrics.RecordDraftError(ex.GetType().Name);
-            
+
             await errorService.LogAsync(new ErrorLogEntry(
-                ProcessingStage.Creation, 
-                "DRAFT_CREATION_ERROR", 
-                ex.Message, 
-                JsonSerializer.Serialize(evt), 
-                true, 
+                ProcessingStage.Creation,
+                "DRAFT_CREATION_ERROR",
+                ex.Message,
+                JsonSerializer.Serialize(evt),
+                true,
                 evt.AggregationGroupId), ct);
+        }
+        finally
+        {
+            _concurrencyLimiter.Release();
         }
     }
 }

@@ -80,7 +80,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(o => o.DisplayRequestDuration());
 }
 
 app.UseRouting();

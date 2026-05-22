@@ -11,11 +11,14 @@ public sealed class DraftInvoiceService(
 {
     public async Task ProcessAggregationReadyAsync(AggregationReadyEvent evt, CancellationToken ct = default)
     {
-        var transactions = await txRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
+        var transactionTask = txRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
+        var draftTask = draftRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
+        
+        var transactions = await transactionTask;
+        var draft = await draftTask;
+        
         if (transactions.Count == 0)
             throw new InvalidOperationException($"No processed transactions found for group {evt.AggregationGroupId}");
-
-        var draft = await draftRepo.GetByGroupIdAsync(evt.AggregationGroupId, ct);
         
         if (draft is null)
         {

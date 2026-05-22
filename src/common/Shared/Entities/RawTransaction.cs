@@ -37,24 +37,14 @@ public class RawTransaction : IAuditableEntity
 
 public enum TransactionStatus
 {
-    [Column("Получен")]
     Received = 0, 
-    
-    [Column("Ошибка валидации")]
     ValidationError = 1, 
-    
-    [Column("Обработан")]
     Processed = 2
 }
 
 public enum TransactionType
 {
-    [Display(Name = "Отгрузочный")]
     Shipment = 0,
-
-    [Display(Name = "Авансовый")]
     Advance = 1,
-
-    [Display(Name = "Корректировочный")]
     Corrective = 2
 }

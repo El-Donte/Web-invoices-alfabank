@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using Shared.Contracts;
@@ -22,42 +23,94 @@ public sealed class TransactionIngestionService(
         IReadOnlyList<(string RawPayload, AbsMessage Message)> batch, 
         CancellationToken ct = default)
     {
-        if (batch.Count == 0) return new(0, 0, 0, 0);
+        if (batch.Count == 0) return new IngestionResult(0, 0, 0, 0);
 
-        var validTransactions = new List<RawTransaction>();
+        var validTransactions = new ConcurrentBag<RawTransaction>();
         var validationErrorCount = 0;
-        
-        foreach (var (rawPayload, msg) in batch)
-        {
-            var validationError = validationService.Validate(msg);
-            if (!string.IsNullOrEmpty(validationError))
-            {
-                validationErrorCount++;
-                IngestionMetrics.RecordMessage("validation_error");
-                await errorService.LogAsync(new ErrorLogEntry(ProcessingStage.Ingest, "VALIDATION_FAILED", 
-                    validationError, rawPayload, Retryable: false), ct);
-                continue;
-            }
-            
-            var counterpartyId = await counterpartyRepo.GetCounterpartyIdByInnAsync(msg.BuyerInn, ct);
-            var hash = ComputeHash(rawPayload);
-            
-            validTransactions.Add(MapToRawTransaction(msg, rawPayload, hash, counterpartyId));
-        }
 
-        if (validTransactions.Count == 0) 
-            return new IngestionResult(batch.Count, 0, 0, validationErrorCount);
+        try
+        {
+            var innToProcess = new ConcurrentDictionary<string, byte>();
+            await Parallel.ForEachAsync(batch, new ParallelOptions
+            {
+                CancellationToken = ct,
+                MaxDegreeOfParallelism = 16
+            }, async (item, token) =>
+            {
+                var (rawPayload, msg) = item;
+
+                var validationError = validationService.Validate(msg);
+                if (!string.IsNullOrEmpty(validationError))
+                {
+                    Interlocked.Increment(ref validationErrorCount);
+                    IngestionMetrics.RecordMessage("validation_error");
+
+                    await errorService.LogAsync(new ErrorLogEntry(
+                        ProcessingStage.Ingest,
+                        "VALIDATION_FAILED",
+                        validationError, rawPayload, false), token);
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(msg.BuyerInn))
+                    innToProcess.TryAdd(msg.BuyerInn, 0);
+            });
+            
+            var innList = innToProcess.Keys.ToList();
+            var counterpartyDict = innList.Count > 0 
+                ? await counterpartyRepo.GetCounterpartyIdsByInnBatchAsync(innList, ct) 
+                : new Dictionary<string, Guid>();
+            
+            await Parallel.ForEachAsync(batch, new ParallelOptions 
+            { 
+                MaxDegreeOfParallelism = 24, 
+                CancellationToken = ct 
+            }, (item, token) =>
+            {
+                var (rawPayload, msg) = item;
+
+                if (string.IsNullOrWhiteSpace(msg.BuyerInn) || 
+                    !counterpartyDict.TryGetValue(msg.BuyerInn, out var counterpartyId))
+                {
+                    return ValueTask.CompletedTask;
+                }
+
+                var hash = ComputeHash(rawPayload);
+                var transaction = MapToRawTransaction(msg, rawPayload, hash, counterpartyId);
+                validTransactions.Add(transaction);
+
+                return ValueTask.CompletedTask;
+            });
+            
+
+            if (validTransactions.Count == 0)
+                return new IngestionResult(batch.Count, 0, 0, validationErrorCount);
+
+            var validList = validTransactions.ToList();
+
+            var hashes = validList.Select(t => t.PayloadHash).Distinct().ToList();
+            var existingHashes = await transactionRepo.GetExistingHashesAsync(hashes, ct);
+
+            var toInsert = validList
+                .Where(t => !existingHashes.Contains(t.PayloadHash))
+                .ToList();
+
+            var duplicates = validList.Count - toInsert.Count;
+
+            if (toInsert.Count > 0)
+                await transactionRepo.AddRangeAsync(toInsert, ct);
+
+            logger.LogInformation("Batch processed: {Total} total, {Inserted} inserted, {Duplicates} duplicates",
+                batch.Count, toInsert.Count, duplicates);
+
+            return new IngestionResult(batch.Count, toInsert.Count, duplicates, validationErrorCount);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing batch");
+        }
         
-        var hashes = validTransactions.Select(t => t.PayloadHash).Distinct().ToList();
-        var existingHashes = await transactionRepo.GetExistingHashesAsync(hashes, ct);
-        
-        var duplicates = validTransactions.Count(t => existingHashes.Contains(t.PayloadHash));
-        var toInsert = validTransactions.Where(t => !existingHashes.Contains(t.PayloadHash)).ToList();
-        
-        if(toInsert.Count > 0)
-            await transactionRepo.AddRangeAsync(toInsert, ct);
-        logger.LogInformation($"{toInsert.Count} inserted {validTransactions.Count} inserted transactions");
-        return new IngestionResult(batch.Count, toInsert.Count, duplicates, validationErrorCount);
+        return new IngestionResult(batch.Count, 0, 0, 0);
     }
 
     private static RawTransaction MapToRawTransaction(AbsMessage message, string payload, string hash, Guid counterpartyId) =>

@@ -19,7 +19,6 @@ public static class IngestionMetrics
     public static readonly Counter<long> AggregationGroupsProcessed = 
         Meter.CreateCounter<long>("aggregation.groups.processed.total", "{group}", "Aggregation groups transitioned to READY");
     
-    
     public static readonly Histogram<double> RawTransactionCreationDuration = 
         Meter.CreateHistogram<double>("ingestion.raw_transaction.creation.duration", "s", "Time to create and persist one RawTransaction");
 
@@ -39,7 +38,7 @@ public static class IngestionMetrics
         AggregationEventPublishDuration.Record(seconds);
     
     public static void RecordMessage(string status,int count = 1) => 
-        MessagesProcessed.Add(count, new KeyValuePair<string, object?>("status", status));
+        MessagesProcessed.Add(count);
     
 
     public static void RecordDuplicate() => 

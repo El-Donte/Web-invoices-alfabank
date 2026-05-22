@@ -22,18 +22,9 @@ public class ProcessingError : IAuditableEntity
 
 public enum ProcessingStage
 {
-    [Column("Интеграци")]
      Ingest = 0,
-     
-    [Column("Обработка")]
      Proceeding = 1,
-     
-    [Column("Агрегация")]
      Aggregation = 2,
-     
-    [Column("Создание")]
      Creation = 3,
-     
-     [Column("Эксорт")]
      Export = 4
 }

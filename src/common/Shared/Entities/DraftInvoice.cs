@@ -23,7 +23,7 @@ public class DraftInvoice : IAuditableEntity
     public Guid SellerId { get; set; }
     public Guid DepartmentId { get; set; }
     public Guid AggregationGroupId { get; set; }
-    public ICollection<DraftInvoiceLine> Lines { get; set; } = new List<DraftInvoiceLine>();
+    public List<DraftInvoiceLine> Lines { get; set; } = new();
 
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

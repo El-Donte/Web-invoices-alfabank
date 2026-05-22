@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using AbsIntegrationService.Metrics;
 using Shared.Contracts;
@@ -108,11 +109,15 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
         using var scope = _serviceProvider.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<ITransactionIngestionService>();
         var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
-
-        var parsedBatch =  new List<(string RawPayload, AbsMessage Message)>();
         
         var sw = Stopwatch.StartNew();
-        foreach (var msg in batch)
+        var parsedBatch = new ConcurrentBag<(string RawPayload, AbsMessage Message)>();
+
+        await Parallel.ForEachAsync(batch, new ParallelOptions 
+        { 
+            MaxDegreeOfParallelism = 20,
+            CancellationToken = ct 
+        }, async (msg, token) =>
         {
             try
             {
@@ -122,13 +127,20 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
             catch (Exception ex)
             {
                 IngestionMetrics.RecordMessage("DESERIALIZATION_FAILURE");
-                _logger.LogError(ex, "Failed to deserialize message. Offset will be committed to avoid poison pill.");
+                _logger.LogError(ex, "Deserialization failed");
+                // можно добавить в errorService
             }
+        });
+
+        if (parsedBatch.IsEmpty)
+        {
+            CommitOffsets(batch);
+            return;
         }
 
         try
         {
-            var result = await ingestionService.ProcessBatchAsync(parsedBatch, ct);
+            var result = await ingestionService.ProcessBatchAsync(parsedBatch.ToList(), ct);
 
             CommitOffsets(batch);
 
@@ -161,6 +173,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
         var validResults = batch.Where(r => r != null);
     
         var offsetsToCommit = validResults
+            .AsParallel()
             .GroupBy(r => r.TopicPartition)
             .Select(g =>
             {

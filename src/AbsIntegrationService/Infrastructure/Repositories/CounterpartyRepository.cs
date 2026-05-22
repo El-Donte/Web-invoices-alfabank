@@ -13,4 +13,15 @@ public class CounterpartyRepository(AppDbContext context) : ICounterpartyReposit
         
         return entity?.Id ?? Guid.Empty;
     }
+    
+    public async Task<Dictionary<string, Guid>> GetCounterpartyIdsByInnBatchAsync(
+        List<string> inns, CancellationToken ct = default)
+    {
+        if (inns == null || inns.Count == 0) 
+            return new Dictionary<string, Guid>();
+
+        return await context.Counterparties
+            .Where(c => inns.Contains(c.Inn))
+            .ToDictionaryAsync(c => c.Inn, c => c.Id, ct);
+    }
 }

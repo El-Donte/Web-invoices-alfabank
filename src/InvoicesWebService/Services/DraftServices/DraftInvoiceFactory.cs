@@ -47,8 +47,6 @@ public static class DraftInvoiceFactory
             draft.DepartmentId = validTx.DepartmentId;
         }
         
-        draft.Lines.Clear();
-        
         AddLines(draft, txs);
 
         RecalculateTotals(draft);
@@ -64,32 +62,32 @@ public static class DraftInvoiceFactory
 
     private static void AddLines(DraftInvoice draft, IReadOnlyList<RawTransactionDTO> txs)
     {
-        var grouped = txs.GroupBy(t => 
-            new
+        var lines = txs
+            .AsParallel()
+            .GroupBy(t => new { t.ProductCode, t.ProductName, t.UnitMeasure, t.NdsRate })
+            .Select(g =>
             {
-                t.ProductCode, t.ProductName, t.UnitMeasure, t.NdsRate
-            });
-        
-        foreach (var g in grouped)
-        {
-            var first = g.First();
-            var line = new DraftInvoiceLine
-            {
-                Id = Guid.NewGuid(),
-                DraftInvoiceId = draft.Id,
-                RawTransactionId = first.Id,
-                ProductCode = g.Key.ProductCode,
-                ProductName = g.Key.ProductName,
-                Unit = g.Key.UnitMeasure,
-                NdsRate = g.Key.NdsRate,
-                Quantity = g.Sum(t => t.Quantity),
-                UnitPrice = first.UnitPrice,
-                AmountWithoutNds = g.Sum(t => t.Amount - t.NdsAmount),
-                NdsAmount = g.Sum(t => t.NdsAmount),
-                TotalAmount = g.Sum(t => t.Amount)
-            };
-            draft.Lines.Add(line);
-        }
+                var first = g.First();
+                return new DraftInvoiceLine
+                {
+                    Id = Guid.NewGuid(),
+                    DraftInvoiceId = draft.Id,
+                    RawTransactionId = first.Id,
+                    ProductCode = g.Key.ProductCode,
+                    ProductName = g.Key.ProductName,
+                    Unit = g.Key.UnitMeasure,
+                    NdsRate = g.Key.NdsRate,
+                    Quantity = g.Sum(t => t.Quantity),
+                    UnitPrice = first.UnitPrice,
+                    AmountWithoutNds = g.Sum(t => t.Amount - t.NdsAmount),
+                    NdsAmount = g.Sum(t => t.NdsAmount),
+                    TotalAmount = g.Sum(t => t.Amount)
+                };
+            })
+            .ToList();
+
+        draft.Lines.Clear();
+        draft.Lines.AddRange(lines);
     }
     
     private static RawTransactionDTO? ValidTransaction(IReadOnlyList<RawTransactionDTO> txs) =>
