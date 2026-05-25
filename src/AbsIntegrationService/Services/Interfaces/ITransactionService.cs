@@ -9,4 +9,4 @@ public interface ITransactionIngestionService
         CancellationToken ct = default);
 }
 
-public record IngestionResult(int Total, int Inserted, int Duplicates, int ValidationErrors);
+public record IngestionResult(int Total, int Duplicates, int ValidationErrors);

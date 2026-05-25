@@ -15,8 +15,6 @@ public sealed class AggregationScheduledWorker(
         var settings = _settings.Value;
         
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(settings.IntervalSeconds));
-        logger.LogInformation("Aggregation worker started. Interval: {Interval}s, BatchSize: {BatchSize}", 
-            settings.IntervalSeconds, settings.BatchSize);
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -28,7 +26,7 @@ public sealed class AggregationScheduledWorker(
                 var processedCount = await aggregationService.ProcessPendingBatchesAsync(stoppingToken);
                 
                 if (processedCount > 0)
-                    logger.LogInformation("Aggregation cycle completed. Groups updated: {Count}", processedCount);
+                   logger.LogInformation("Aggregation cycle completed. Groups updated: {Count}", processedCount);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -39,7 +37,5 @@ public sealed class AggregationScheduledWorker(
                 logger.LogError(ex, "Aggregation cycle failed. Will retry in {Interval}s", settings.IntervalSeconds);
             }
         }
-
-        logger.LogInformation("Aggregation worker stopped gracefully.");
     }
 }

@@ -22,4 +22,9 @@ public class ProcessingErrorService(AppDbContext context) : IProcessingErrorServ
         context.ProcessingErrors.Add(error);
         await context.SaveChangesAsync(ct);
     }
+
+    public async Task LogBatchAsync(IEnumerable<ErrorLogEntry> errors, CancellationToken ct = default)
+    {
+        errors.ToList().AsParallel().ForAll(error => LogAsync(error, ct));
+    }
 }

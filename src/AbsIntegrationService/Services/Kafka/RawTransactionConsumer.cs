@@ -47,6 +47,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
 
         var batch = new List<ConsumeResult<string, string>>();
         var lastFlush = DateTime.UtcNow;
+        
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -98,9 +99,9 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
         }
         finally
         {
-            _consumer?.Close();
+            _consumer.Close();
             _logger.LogInformation("Kafka consumer stopped gracefully.");
-            _consumer?.Dispose();
+            _consumer.Dispose();
         }
     }
 
@@ -115,7 +116,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
 
         await Parallel.ForEachAsync(batch, new ParallelOptions 
         { 
-            MaxDegreeOfParallelism = 20,
+            MaxDegreeOfParallelism = 8,
             CancellationToken = ct 
         }, async (msg, token) =>
         {
@@ -128,7 +129,6 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
             {
                 IngestionMetrics.RecordMessage("DESERIALIZATION_FAILURE");
                 _logger.LogError(ex, "Deserialization failed");
-                // можно добавить в errorService
             }
         });
 
@@ -168,20 +168,13 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
 
     private void CommitOffsets(List<ConsumeResult<string, string>> batch)
     {
-        if (batch == null || batch.Count == 0) return;
-        
-        var validResults = batch.Where(r => r != null);
+        if (batch.Count == 0) return;
     
-        var offsetsToCommit = validResults
+        var offsets = batch
             .AsParallel()
             .GroupBy(r => r.TopicPartition)
-            .Select(g =>
-            {
-                var maxOffset = g.Max(r => r.Offset.Value);
-                
-                return new TopicPartitionOffset(g.Key, maxOffset + 1);
-            });
-
-        _consumer.Commit(offsetsToCommit);
+            .Select(g => new TopicPartitionOffset(g.Key, g.Max(r => r.Offset.Value) + 1));
+    
+        _consumer.Commit(offsets);
     }
 }

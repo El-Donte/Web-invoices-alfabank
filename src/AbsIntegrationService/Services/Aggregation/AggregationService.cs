@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using System.Threading.Channels;
 using AbsIntegrationService.Infrastructure.Repositories;
 using AbsIntegrationService.Metrics;
 using AbsIntegrationService.Services.Aggregation;
 using AbsIntegrationService.Services.Interfaces;
-using AbsIntegrationService.Services.Kafka;
 using Microsoft.Extensions.Options;
 using Shared.Contracts.Events;
 using Shared.Entities;
@@ -14,7 +14,7 @@ namespace AbsIntegrationService.Services;
 
 public class AggregationService(
     IServiceScopeFactory scopeFactory,
-    IAggregationReadyEventProducer producer,
+    Channel<AggregationReadyEvent> eventChannel,
     IOptions<AggregationWorkerSettings> settings,
     ILogger<AggregationService> logger)
     : IAggregationService
@@ -27,7 +27,8 @@ public class AggregationService(
         var rawTxRepo = readScope.ServiceProvider.GetRequiredService<IRawTransactionRepository>();
 
         var ungrouped = await rawTxRepo.GetUngroupedTransactionsAsync(_settings.BatchSize, ct);
-        if (ungrouped.Count == 0) return 0;
+        if (ungrouped.Count == 0) 
+            return 0;
 
         var groups = ungrouped
             .GroupBy(t => new AggregationRecord(t.OperationNumber, t.TransactionDate))
@@ -35,7 +36,7 @@ public class AggregationService(
 
         var options = new ExecutionDataflowBlockOptions
         {
-            MaxDegreeOfParallelism = 20,
+            MaxDegreeOfParallelism = 8,
             CancellationToken = ct,
             EnsureOrdered = false
         };
@@ -86,7 +87,7 @@ public class AggregationService(
                 await rawTxRepo.AddAggregationGroupIdAsync(txIds, aggGroup.Id, ct);
 
                 var evt = CreateAggregationReadyEvent(aggGroup);
-                await producer.ProduceAggregationEventAsync(evt, ct);
+                await eventChannel.Writer.WriteAsync(evt, ct);
                 
                 aggGroup.Status = AggregationStatus.Open;
                 await aggregationRepo.CreateOrUpdateAsync(aggGroup, ct);

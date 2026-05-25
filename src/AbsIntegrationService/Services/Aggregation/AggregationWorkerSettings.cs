@@ -2,8 +2,10 @@ namespace AbsIntegrationService.Services.Aggregation;
 
 public class AggregationWorkerSettings
 {
-    public int IntervalSeconds {get; set;}
+    public double IntervalSeconds {get; set;}
     public int BatchSize {get; set;}
     public int MinimumTransactionsForReady {get; set;}
-    public int TimeoutMinutes {get; set;}
+    public double TimeoutMinutes {get; set;}
+    public int EventBatchSize {get; set;}
+    public int EventFlushIntervalMs { get; set; }
 }

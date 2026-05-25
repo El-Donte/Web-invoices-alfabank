@@ -48,7 +48,7 @@ public class ValidationService : IValidationService
             return rule;
         }
 
-        var allowedRates = new HashSet<decimal>{20m, 22m ,10m};
+        var allowedRates = new HashSet<decimal>{0.20m, 0.22m ,0.10m};
         if (!allowedRates.Contains(msg.NdsRate))
         {
             var rule = $"Invalid NDS rate: {msg.NdsRate}. Allowed: {string.Join(", ", allowedRates)}";

@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using AbsIntegrationService.Infrastructure.Data;
 using AbsIntegrationService.Infrastructure.Repositories;
 using AbsIntegrationService.Services;
@@ -20,7 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 //db
 builder.Services.AddSingleton<AuditInterceptor>();
 builder.Services.AddSingleton<EfCoreMetricsInterceptor>();
-builder.Services.AddDbContext<AppDbContext>();
+builder.Services.AddDbContextFactory<AppDbContext>();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 //repos
@@ -30,16 +31,25 @@ builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
 builder.Services.AddScoped<IRawTransactionRepository, RawTransactionRepository>();
 
 //services
-builder.Services.AddScoped<ITransactionIngestionService, TransactionIngestionService>();
+builder.Services.AddSingleton<ITransactionIngestionService, TransactionIngestionService>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
 
 builder.Services.Configure<AggregationWorkerSettings>(builder.Configuration.GetSection("AggregationWorker"));
 builder.Services.AddScoped<IAggregationService, AggregationService>();
 builder.Services.AddHostedService<AggregationScheduledWorker>();
 
+var eventChannel = Channel.CreateBounded<AggregationReadyEvent>(new BoundedChannelOptions(10_000)
+{
+    FullMode = BoundedChannelFullMode.Wait,
+    SingleReader = true,
+    SingleWriter = false
+});
+builder.Services.AddSingleton(eventChannel);
+builder.Services.AddHostedService<EventPublisherWorker>();
+
 //kafka
 builder.Services.AddProducer<AggregationReadyEvent>(builder.Configuration.GetSection("Kafka:AggregationGroup"));
-builder.Services.AddScoped<IAggregationReadyEventProducer, AggregationReadyEventProducer>();
+builder.Services.AddSingleton<IAggregationReadyEventProducer, AggregationReadyEventProducer>();
 builder.Services.AddConsumer<AbsMessage, RawTransactionConsumer>(builder.Configuration.GetSection("Kafka:Abs"));
 
 builder.Logging.AddOpenTelemetry(logging =>

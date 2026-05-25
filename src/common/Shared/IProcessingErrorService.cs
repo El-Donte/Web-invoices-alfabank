@@ -5,6 +5,7 @@ namespace Shared;
 public interface IProcessingErrorService
 {
     Task LogAsync(ErrorLogEntry error, CancellationToken ct = default);
+    Task LogBatchAsync(IEnumerable<ErrorLogEntry> errors, CancellationToken ct = default);
 }
 
 public record ErrorLogEntry(

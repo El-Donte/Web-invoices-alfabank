@@ -5,13 +5,18 @@ namespace AbsIntegrationService.Services.Kafka;
 
 public class AggregationReadyEventProducer(IKafkaProducer<AggregationReadyEvent>  kafkaProducer) : IAggregationReadyEventProducer
 {
-    public async Task ProduceAggregationEventAsync(AggregationReadyEvent aggGroup, CancellationToken token)
+    public async Task ProduceBatchAggregationEventAsync(IEnumerable<AggregationReadyEvent> aggGroups, CancellationToken token)
     {
-        await kafkaProducer.ProduceAsync(aggGroup, aggGroup.AggregationGroupId.ToString(), token);
+        var tasks = aggGroups
+            .Select(evt => 
+                kafkaProducer.ProduceAsync(evt, evt.AggregationGroupId.ToString(), token))
+            .ToList(); 
+
+        await Task.WhenAll(tasks);
     }
 }
 
 public interface IAggregationReadyEventProducer
 {
-    public Task ProduceAggregationEventAsync(AggregationReadyEvent draftEvent, CancellationToken token);
+    public Task ProduceBatchAggregationEventAsync(IEnumerable<AggregationReadyEvent> draftEvents, CancellationToken token);
 }

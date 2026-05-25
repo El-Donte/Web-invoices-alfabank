@@ -3,25 +3,41 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AbsIntegrationService.Infrastructure.Repositories;
 
-public class CounterpartyRepository(AppDbContext context) : ICounterpartyRepository
+public class CounterpartyRepository(IDbContextFactory<AppDbContext> ctxFactory) : ICounterpartyRepository
 {
-    public async Task<Guid> GetCounterpartyIdByInnAsync(string inn, CancellationToken cancellationToken = default)
+    public async Task<Guid> GetCounterpartyIdByInnAsync(string inn, CancellationToken ct = default)
     {
-        var entity = await context.Counterparties
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Inn == inn, cancellationToken);
-        
-        return entity?.Id ?? Guid.Empty;
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+
+        try
+        {
+            var entity = await context.Counterparties
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Inn == inn, ct);
+
+            return entity?.Id ?? Guid.Empty;
+        }
+        catch (DbUpdateException ex)
+        {
+            throw ex;
+        }
     }
     
-    public async Task<Dictionary<string, Guid>> GetCounterpartyIdsByInnBatchAsync(
-        List<string> inns, CancellationToken ct = default)
+    public async Task<List<(string Inn, Guid Id)>> GetAllCounterpartiesAsync()
     {
-        if (inns == null || inns.Count == 0) 
-            return new Dictionary<string, Guid>();
+        await using var context = await ctxFactory.CreateDbContextAsync();
 
-        return await context.Counterparties
-            .Where(c => inns.Contains(c.Inn))
-            .ToDictionaryAsync(c => c.Inn, c => c.Id, ct);
+        try
+        {
+            return await context.Counterparties
+                .Where(c => !string.IsNullOrEmpty(c.Inn))
+                .Select(c => new { c.Inn, c.Id })
+                .ToListAsync()
+                .ContinueWith(t => t.Result.Select(x => (x.Inn, x.Id)).ToList());
+        }
+        catch (DbUpdateException ex)
+        {
+            throw ex;
+        }
     }
 }
