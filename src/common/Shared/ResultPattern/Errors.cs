@@ -1,13 +1,21 @@
-﻿namespace Shared.Results;
+﻿using Microsoft.AspNetCore.Identity;
+
+namespace Shared.Results;
 
 public static class Errors
 {
     public static class General
     {
-        public static Error ValueIsInvalid(string? name = null)
+        public static List<Error> ValuesIsInvalid(IEnumerable<IdentityError> errors)
         {
-            var label = name ?? "value";
-            return Error.Validation("value.is.invalid", $"{label} недопустимое значение");
+            List<Error> newErrors = [];
+            newErrors.AddRange(
+                errors.Select(
+                    error => Error.Validation(error.Code, error.Description)
+                    )
+                );
+
+            return newErrors;
         }
 
         public static Error ValueIsInvalidLength(string? name = null)

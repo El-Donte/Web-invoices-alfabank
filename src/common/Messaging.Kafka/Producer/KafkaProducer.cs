@@ -1,28 +1,28 @@
 using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Messaging.Kafka.Producer;
 
 public class KafkaProducer<TMessage> : IKafkaProducer<TMessage>
 {
     private readonly IProducer<string, TMessage> _producer;
-    private readonly ILogger<KafkaProducer<TMessage>> _logger;
     private readonly string _topic;
     private bool _disposed;
 
-    public KafkaProducer(KafkaSettings kafkaSettings,  ILogger<KafkaProducer<TMessage>> logger)
+    public KafkaProducer(KafkaSettings kafkaSettings)
     {
         var config = new ProducerConfig
         {
             BootstrapServers = kafkaSettings.BootstrapServers,
             Acks = Acks.All,
             MessageSendMaxRetries = 5,
+            BatchNumMessages = 50_000,
             RetryBackoffMs = 500,
             EnableIdempotence = true,
+            LingerMs = 20,
+            BatchSize = 16_777_216,
+            QueueBufferingMaxMessages = 5_000_000,
             ClientId = $"invoice-system-producer-{Guid.NewGuid().ToString("N").Substring(0, 8)}"
         };
-        _logger = logger;
         
         _topic = kafkaSettings.Topic;
         
@@ -31,7 +31,7 @@ public class KafkaProducer<TMessage> : IKafkaProducer<TMessage>
             .Build();
     }
 
-    public async Task ProduceAsync(TMessage message, string? key = null, CancellationToken token = default)
+    public async Task<DeliveryResult<string, TMessage>>? ProduceAsync(TMessage message, string? key = null, CancellationToken token = default)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         
@@ -42,11 +42,10 @@ public class KafkaProducer<TMessage> : IKafkaProducer<TMessage>
             Key = messageKey,
             Value = message
         }, token);
-        
-        _logger.LogInformation("Message published to topic {Topic} | Partition: {Partition} | Offset: {Offset} | Key: {Key}",
-            deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset, messageKey);
-    }
 
+        return deliveryResult;
+    }
+    
     public void Dispose()
     {
         if (_disposed) return;

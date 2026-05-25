@@ -1,6 +1,8 @@
-﻿namespace Messaging.Kafka.Producer;
+﻿using Confluent.Kafka;
 
-public interface IKafkaProducer<in TMessage> : IDisposable
+namespace Messaging.Kafka.Producer;
+
+public interface IKafkaProducer<TMessage> : IDisposable
 {
-    Task ProduceAsync(TMessage message, string? key = null ,CancellationToken token = default);
+    Task<DeliveryResult<string, TMessage>>? ProduceAsync(TMessage message, string? key = null ,CancellationToken token = default);
 }

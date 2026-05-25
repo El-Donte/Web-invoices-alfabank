@@ -14,7 +14,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceFieldChangeHistory> ChangeHistory => Set<InvoiceFieldChangeHistory>();
-    public DbSet<User> Users => Set<User>();
     public DbSet<DepartmentAccess> DepartmentAccesses => Set<DepartmentAccess>();
 
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
@@ -60,7 +59,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         b.ApplyConfigurationsFromAssembly(typeof(InvoiceFieldChangeHistoryConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(DraftInvoiceConfiguration).Assembly);
         b.ApplyConfigurationsFromAssembly(typeof(DraftInvoiceLineConfiguration).Assembly);
-        b.ApplyConfigurationsFromAssembly(typeof(DepartmentAccessConfiguration).Assembly);
         
         b.Entity<Invoice>().HasQueryFilter(e => 
             EF.Property<Guid>(e, "DepartmentId") == GetCurrentDepartmentId());
@@ -68,7 +66,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
             EF.Property<Guid>(l.Invoice, "DepartmentId") == GetCurrentDepartmentId());
         
         b.Ignore<Counterparty>();
-        b.Ignore<Department>();
         b.Ignore<AggregationGroup>();
         b.Ignore<ExportRecord>();
     }

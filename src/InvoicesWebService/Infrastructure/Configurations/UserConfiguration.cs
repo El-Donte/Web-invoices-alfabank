@@ -12,9 +12,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         b.HasKey(e => e.Id);
         
         b.Property(e => e.Id).HasColumnName("id");
-        b.Property(e => e.Login).HasColumnName("login").IsRequired();
-        b.Property(e => e.Password).HasColumnName("password").IsRequired();
-        b.Property(e => e.FullName).HasColumnName("full_name").HasMaxLength(128).IsRequired();
+        b.Property(e => e.UserName).HasColumnName("login").IsRequired();
+        b.Property(e => e.PasswordHash).HasColumnName("password").IsRequired();
+        b.Property(e => e.FullName).HasColumnName("full_name").HasMaxLength(200).IsRequired();
         b.Property(e => e.Position).HasColumnName("position");
         b.Property(e => e.CreatedAt).HasColumnName("created_at");
         b.Property(e => e.UpdatedAt).HasColumnName("updated_at");

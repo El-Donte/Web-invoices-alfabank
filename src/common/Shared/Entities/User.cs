@@ -1,33 +1,24 @@
-using System.ComponentModel.DataAnnotations.Schema;
-using Shared;
+using Microsoft.AspNetCore.Identity;
 
 namespace Shared.Entities;
 
-public class User : IAuditableEntity
+public class User : IdentityUser<Guid>, IAuditableEntity
 {
-    public Guid Id { get; set; } =  Guid.NewGuid();
-    public string Login { get; set; }
-    public string Password { get; set; }
+    public override Guid Id { get; set; } =  Guid.NewGuid();
+    [PersonalData]
     public string FullName { get; set; }
     public Position Position { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    
+    public ICollection<DepartmentAccess> DepartmentAccesses { get; set; } = new List<DepartmentAccess>();
 }
 
 public enum Position
 {
-    [Column("Админ")]
     Admin = 0,
-    
-    [Column("Факторинг")]
     Factoring = 1,
-    
-    [Column("Бухгалтер")]
     Accounting = 2,
-    
-    [Column("Налоговое управление")]
     Taxation = 3,
-    
-    [Column("Экваринг")]
     Acquiring = 4
 }

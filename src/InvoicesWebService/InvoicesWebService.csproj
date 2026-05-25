@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>InvoicesWebService</RootNamespace>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <UserSecretsId>0080f025-1321-4d61-9363-16b6a54ba9ee</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,6 +15,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+      <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.7" />
       <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.7" />
@@ -46,10 +49,6 @@
       <Content Include="..\..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Models\Responses\" />
     </ItemGroup>
 
 </Project>

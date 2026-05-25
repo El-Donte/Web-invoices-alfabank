@@ -14,7 +14,7 @@ public class DepartmentAccessConfiguration : IEntityTypeConfiguration<Department
         b.Property(e => e.Id).HasColumnName("id");
         b.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
         b.Property(e => e.DepartmentId).HasColumnName("department_id").IsRequired();
-
+        
         b.HasIndex(e => new { e.UserId, e.DepartmentId })
             .IsUnique()
             .HasDatabaseName("UX_department_access_user_dept");
@@ -23,13 +23,13 @@ public class DepartmentAccessConfiguration : IEntityTypeConfiguration<Department
             .HasDatabaseName("IX_department_access_user");
 
         b.HasOne<User>()
-            .WithMany()
+            .WithMany(u => u.DepartmentAccesses)
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired();
         
         b.HasOne<Department>()
-            .WithMany()
+            .WithMany(d => d.DepartmentAccesses)
             .HasForeignKey(e => e.DepartmentId)
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired();

@@ -1,11 +1,16 @@
+using System.Text;
+using InvoicesWebService.Infrastructure;
 using InvoicesWebService.Infrastructure.Data;
 using InvoicesWebService.Infrastructure.Repositories;
 using InvoicesWebService.Infrastructure.Repositories.Interfaces;
+using InvoicesWebService.Services.Authorization;
 using InvoicesWebService.Services.DraftServices;
 using InvoicesWebService.Services.Interfaces;
 using InvoicesWebService.Services.Kafka;
 using Messaging.Kafka;
-using Messaging.Kafka.Producer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Shared;
 using Prometheus;
@@ -13,13 +18,20 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Shared.Contracts.Events;
+using Shared.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
 //db
 builder.Services.AddSingleton<AuditInterceptor>();
 builder.Services.AddSingleton<EfCoreMetricsInterceptor>();
-builder.Services.AddDbContext<AppDbContext>();
+builder.Services.AddDbContextFactory<AppDbContext>();
+
+builder.Services.AddDbContext<UserDbContext>();
+builder.Services.AddIdentity<User, IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<UserDbContext>()
+    .AddDefaultTokenProviders();
+
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 //repo
@@ -30,6 +42,7 @@ builder.Services.AddScoped<IRawTransactionReader, RawTransactionReader>();
 //services
 builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
 builder.Services.AddScoped<IDraftInvoiceService, DraftInvoiceService>();
+builder.Services.AddScoped<IPositionRoleSyncService, PositionRoleSyncService>();
 
 //kafka
 builder.Services.AddConsumer<AggregationReadyEvent, AggregationReadyConsumer>
@@ -38,9 +51,41 @@ builder.Services.AddConsumer<AggregationReadyEvent, AggregationReadyConsumer>
 //controllers
 builder.Services.AddControllers();
 
+//authentication
+builder.Services.Configure<JwtConfiguration>(builder.Configuration.GetSection("Jwt"));
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters.ValidIssuer = builder.Configuration["Jwt:Issuer"];
+        options.TokenValidationParameters.ValidAudience = builder.Configuration["Jwt:Audience"];
+        options.TokenValidationParameters.IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]));
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("CanViewInvoices", policy => 
+        policy.RegisterPermissions("invoices:read"))
+
+    .AddPolicy("CanManageInvoices", policy => 
+        policy.RegisterPermissions("invoices:create", "invoices:update", "invoices:delete"))
+
+    .AddPolicy("CanApproveInvoices", policy => 
+        policy.RequireRole("Accountant", "Admin")
+            .RegisterPermissions("invoices:approve"));
+
+builder.Services.AddAuthorization();
+
+//swagger
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
+//openTelemetry
 builder.Logging.AddOpenTelemetry(logging =>
 {
     logging.IncludeScopes = true;
@@ -51,7 +96,6 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("InvoicesWebService"))
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
-        
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddProcessInstrumentation()
@@ -78,6 +122,8 @@ app.MapMetrics();
 
 if (app.Environment.IsDevelopment())
 {
+    await app.SeedRolesAndPermissionsAsync();
+    
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI(o => o.DisplayRequestDuration());
@@ -85,4 +131,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.MapControllers();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.Run();
