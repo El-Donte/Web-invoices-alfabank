@@ -160,8 +160,7 @@ public class AggregationService(
             logger.LogError(ex, "Failed to save aggregation batch");
         }
     }
-
-    // Вспомогательные методы без изменений
+    
     private static AggregationGroup CreateNewAggregationGroup(IGrouping<AggregationRecord, RawTransactionDTO> group) => new()
     {
         Id = Guid.NewGuid(),

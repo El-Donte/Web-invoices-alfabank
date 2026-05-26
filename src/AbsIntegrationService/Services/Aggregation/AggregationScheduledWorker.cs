@@ -28,7 +28,6 @@ public sealed class AggregationScheduledWorker(
                     continue;
                 }
                 sw.Stop();
-                logger.LogInformation("Aggregation cycle completed. Groups updated: {Count}", processedCount);
                 logger.LogInformation("Aggregation cycle completed. seconds: {Count}", sw.Elapsed.TotalSeconds);
                 await Task.Delay(TimeSpan.FromMilliseconds(100), stoppingToken);
             }
