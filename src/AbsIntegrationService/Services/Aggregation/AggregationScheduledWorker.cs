@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AbsIntegrationService.Services.Aggregation;
 using AbsIntegrationService.Services.Interfaces;
 using Microsoft.Extensions.Options;
@@ -5,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace AbsIntegrationService.Workers;
 
 public sealed class AggregationScheduledWorker(
-    IServiceScopeFactory scopeFactory,
+    IAggregationService aggregationService,
     IOptions<AggregationWorkerSettings> _settings,
     ILogger<AggregationScheduledWorker> logger)
     : BackgroundService
@@ -13,20 +14,23 @@ public sealed class AggregationScheduledWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var settings = _settings.Value;
-        
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(settings.IntervalSeconds));
-
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+    
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using var scope = scopeFactory.CreateScope();
-                var aggregationService = scope.ServiceProvider.GetRequiredService<IAggregationService>();
-                
+                var sw = Stopwatch.StartNew();
                 var processedCount = await aggregationService.ProcessPendingBatchesAsync(stoppingToken);
-                
-                if (processedCount > 0)
-                   logger.LogInformation("Aggregation cycle completed. Groups updated: {Count}", processedCount);
+            
+                if (processedCount == 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(settings.IntervalSeconds), stoppingToken);
+                    continue;
+                }
+                sw.Stop();
+                logger.LogInformation("Aggregation cycle completed. Groups updated: {Count}", processedCount);
+                logger.LogInformation("Aggregation cycle completed. seconds: {Count}", sw.Elapsed.TotalSeconds);
+                await Task.Delay(TimeSpan.FromMilliseconds(100), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -34,7 +38,8 @@ public sealed class AggregationScheduledWorker(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Aggregation cycle failed. Will retry in {Interval}s", settings.IntervalSeconds);
+                logger.LogError(ex, "Aggregation cycle failed");
+                await Task.Delay(TimeSpan.FromSeconds(settings.IntervalSeconds), stoppingToken);
             }
         }
     }

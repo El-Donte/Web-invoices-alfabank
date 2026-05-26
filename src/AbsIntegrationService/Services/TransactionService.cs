@@ -41,12 +41,12 @@ public sealed class TransactionIngestionService : ITransactionIngestionService, 
             async item => await ProcessSingleItemAsync(item),
             new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = 8,
+                MaxDegreeOfParallelism = 16,
                 BoundedCapacity = 50_000,
                 EnsureOrdered = false
             });
 
-        _batchBlock = new BatchBlock<RawTransaction>(10, new GroupingDataflowBlockOptions
+        _batchBlock = new BatchBlock<RawTransaction>(5000, new GroupingDataflowBlockOptions
         {
             BoundedCapacity = 50_000
         });

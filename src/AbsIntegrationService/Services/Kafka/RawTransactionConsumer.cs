@@ -162,6 +162,7 @@ public sealed class RawTransactionConsumer : KafkaConsumer<string>
         finally
         {
             sw.Stop();
+            _logger.LogInformation($"Raw_transaction {sw.Elapsed.TotalSeconds} seconds elapsed.");
             IngestionMetrics.RecordRawTransactionDuration(sw.Elapsed.TotalSeconds);
         }
     }

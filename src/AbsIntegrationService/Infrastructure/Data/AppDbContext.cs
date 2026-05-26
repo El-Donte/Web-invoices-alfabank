@@ -26,7 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
                 dataSourceBuilder.ConnectionStringBuilder.ApplicationName = "Abs-Integration-Service";
                 dataSourceBuilder.ConnectionStringBuilder.SslMode = SslMode.Prefer;
                 dataSourceBuilder.ConnectionStringBuilder.Multiplexing = true;
-                dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 250;
+                dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 350;
             });
             
             npgsqlOptions.EnableRetryOnFailure(

@@ -1,8 +1,7 @@
-using AbsIntegrationService.Services.Kafka;
-
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using Shared.Contracts.Events;
+using AbsIntegrationService.Services.Kafka;
 
 namespace AbsIntegrationService.Services.Aggregation;
 
@@ -15,46 +14,70 @@ public class EventPublisherWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var batchSize = settings.Value.EventBatchSize;
-        var flushIntervalMs = settings.Value.EventFlushIntervalMs;
+        var flushInterval = TimeSpan.FromMilliseconds(settings.Value.EventFlushIntervalMs);
         var batch = new List<AggregationReadyEvent>(batchSize);
-        var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(flushIntervalMs));
+        var reader = eventChannel.Reader;
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            bool tick = await timer.WaitForNextTickAsync(stoppingToken);
-            if (!tick) break;
-            
-            while (batch.Count < batchSize && eventChannel.Reader.TryRead(out var evt))
-                batch.Add(evt);
-
-            if (batch.Count > 0)
+            try
             {
+                bool canRead = await reader.WaitToReadAsync(stoppingToken);
+                if (!canRead) break;
+                
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                cts.CancelAfter(flushInterval);
+
                 try
                 {
-                    await producer.ProduceBatchAggregationEventAsync(batch, stoppingToken);
+                    while (batch.Count < batchSize)
+                    {
+                        if (reader.TryRead(out var evt))
+                        {
+                            batch.Add(evt);
+                        }
+                        else
+                        {
+                            await reader.WaitToReadAsync(cts.Token).ConfigureAwait(false);
+                        }
+                    }
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) when (cts.IsCancellationRequested)
                 {
-                    logger.LogError(ex, "Failed to publish batch of {Count} events", batch.Count);
+
                 }
-                finally
+
+                if (batch.Count > 0)
                 {
+                    var toSend = batch.ToList();
                     batch.Clear();
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await producer.ProduceBatchAggregationEventAsync(toSend, stoppingToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "Failed to publish batch of {Count} events", toSend.Count);
+                        }
+                    }, stoppingToken);
                 }
             }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
+        
+        if (reader.TryPeek(out _))
+        {
+            var remaining = new List<AggregationReadyEvent>();
+            while (reader.TryRead(out var evt))
+                remaining.Add(evt);
 
-        if (batch.Count > 0 || eventChannel.Reader.TryPeek(out _))
-            await DrainAndPublishAsync(stoppingToken);
-    }
-
-    private async Task DrainAndPublishAsync(CancellationToken ct)
-    {
-        var remaining = new List<AggregationReadyEvent>();
-        while (eventChannel.Reader.TryRead(out var evt))
-            remaining.Add(evt);
-
-        if (remaining.Count > 0)
-            await producer.ProduceBatchAggregationEventAsync(remaining, ct);
+            if (remaining.Count > 0)
+                await producer.ProduceBatchAggregationEventAsync(remaining, CancellationToken.None);
+        }
     }
 }

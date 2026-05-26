@@ -35,7 +35,7 @@ builder.Services.AddSingleton<ITransactionIngestionService, TransactionIngestion
 builder.Services.AddScoped<IValidationService, ValidationService>();
 
 builder.Services.Configure<AggregationWorkerSettings>(builder.Configuration.GetSection("AggregationWorker"));
-builder.Services.AddScoped<IAggregationService, AggregationService>();
+builder.Services.AddSingleton<IAggregationService, AggregationService>();
 builder.Services.AddHostedService<AggregationScheduledWorker>();
 
 var eventChannel = Channel.CreateBounded<AggregationReadyEvent>(new BoundedChannelOptions(10_000)

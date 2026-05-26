@@ -1,9 +1,12 @@
+using System.Data;
 using AbsIntegrationService.Infrastructure.Data;
 using AbsIntegrationService.Models.DTOs;
+using Dapper;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Shared.Entities;
+using ConflictOption = EFCore.BulkExtensions.ConflictOption;
 
 namespace AbsIntegrationService.Infrastructure.Repositories;
 
@@ -42,35 +45,30 @@ public class RawTransactionRepository(IDbContextFactory<AppDbContext> ctxFactory
     public async Task<List<RawTransactionDTO>> GetUngroupedTransactionsAsync(int batchSize, CancellationToken ct = default)
     {
         if (batchSize <= 0) return [];
-        
+
         await using var context = await ctxFactory.CreateDbContextAsync(ct);
+        var connection = context.Database.GetDbConnection();
+        
+        if (connection.State != ConnectionState.Open)
+            await connection.OpenAsync(ct);
 
-        try
-        {
-            var ungrouped = await context.RawTransactions
-                .AsNoTracking()
-                .Where(t => t.Status == TransactionStatus.Processed && t.AggregationGroupId == null)
-                .OrderBy(t => t.ReceivedAt)
-                .Take(batchSize)
-                .Select(t => new RawTransactionDTO
-                { 
-                    Id = t.Id, 
-                    OperationNumber = t.OperationNumber, 
-                    TransactionDate = t.Date.Value,
-                    Type = t.Type, 
-                    Amount = t.Amount, 
-                    NdsAmount = t.NdsAmount,
-                    DepartmentId = t.DepartmentId.Value,
-                    CounterpartyId = t.CounterpartyId.Value
-                })
-                .ToListAsync(ct);
+        var sql = @"
+        SELECT r.""Id"", 
+               r.operation_number AS ""OperationNumber"", 
+               r.date AS ""TransactionDate"", 
+               r.type AS ""Type"", 
+               r.amount AS ""Amount"", 
+               r.nds_amount AS ""NdsAmount"", 
+               r.department_id AS ""DepartmentId"", 
+               r.counterparty_id AS ""CounterpartyId""
+        FROM public.raw_transaction AS r
+        WHERE r.status = 'Processed' AND r.aggregation_group_id IS NULL
+        ORDER BY r.received_at
+        LIMIT @batchSize
+        FOR UPDATE SKIP LOCKED";
 
-            return ungrouped;
-        }
-        catch (DbUpdateException ex)
-        {
-            throw ex;
-        }
+        var result = await connection.QueryAsync<RawTransactionDTO>(sql, new { batchSize });
+        return result.AsList();
     }
 
     public async Task AddAggregationGroupIdAsync(List<Guid> transactionIds, Guid aggregationGroupId, CancellationToken ct = default)
@@ -91,5 +89,50 @@ public class RawTransactionRepository(IDbContextFactory<AppDbContext> ctxFactory
         {
             throw ex;
         }
+    }
+
+    public async Task AddAggregationGroupIdsBulkAsync(IDictionary<Guid, List<Guid>> groupToTxIds, CancellationToken ct)
+    {
+        if (groupToTxIds == null || groupToTxIds.Count == 0)
+            return;
+        
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+        
+        if (groupToTxIds == null || groupToTxIds.Count == 0)
+            return;
+        
+        var rows = new List<(Guid TxId, Guid GroupId)>();
+        foreach (var (groupId, txIds) in groupToTxIds)
+        {
+            rows.AddRange(txIds.Select(txId => (txId, groupId)));
+        }
+        
+        const int chunkSize = 8000;
+        for (int i = 0; i < rows.Count; i += chunkSize)
+        {
+            var chunk = rows.Skip(i).Take(chunkSize).ToList();
+            
+            var valuesList = new List<string>();
+            var parameters = new List<NpgsqlParameter>();
+            int idx = 0;
+            foreach (var (txId, groupId) in chunk)
+            {
+                var txParam = new NpgsqlParameter($"@t{idx}", txId);
+                var grParam = new NpgsqlParameter($"@g{idx}", groupId);
+                parameters.Add(txParam);
+                parameters.Add(grParam);
+                valuesList.Add($"(@t{idx}, @g{idx})");
+                idx++;
+            }
+
+            var sql = $@"
+            UPDATE ""raw_transaction"" AS rt
+            SET ""aggregation_group_id"" = v.""GroupId""
+            FROM (VALUES {string.Join(", ", valuesList)}) AS v(""Id"", ""GroupId"")
+            WHERE rt.""Id"" = v.""Id""";
+
+            await context.Database.ExecuteSqlRawAsync(sql, parameters, ct);
+        }
+
     }
 }

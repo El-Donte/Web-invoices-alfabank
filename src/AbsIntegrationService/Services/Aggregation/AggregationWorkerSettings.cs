@@ -8,4 +8,5 @@ public class AggregationWorkerSettings
     public double TimeoutMinutes {get; set;}
     public int EventBatchSize {get; set;}
     public int EventFlushIntervalMs { get; set; }
+    public int MaxParallelGroups { get; set; }
 }
