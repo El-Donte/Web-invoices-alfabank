@@ -51,4 +51,8 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Infrastructure\Data\Migrations\Users\" />
+    </ItemGroup>
+
 </Project>

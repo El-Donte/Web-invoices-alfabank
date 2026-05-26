@@ -51,5 +51,14 @@ public class UserDbContext(DbContextOptions<UserDbContext> options, IConfigurati
         b.ApplyConfigurationsFromAssembly(typeof(DepartmentAccessConfiguration).Assembly);
 
         b.Ignore<Department>();
+        b.Ignore<DraftInvoice>();
+        b.Ignore<DraftInvoiceLine>();
+        b.Ignore<Invoice>();
+        b.Ignore<InvoiceLine>();
+        b.Ignore<InvoiceFieldChangeHistory>();
+        b.Ignore<Counterparty>();
+        b.Ignore<AggregationGroup>();
+        b.Ignore<RawTransaction>();
+        b.Ignore<ExportRecord>();
     }
 }
