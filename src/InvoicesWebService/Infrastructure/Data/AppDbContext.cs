@@ -14,8 +14,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceFieldChangeHistory> ChangeHistory => Set<InvoiceFieldChangeHistory>();
-    public DbSet<DepartmentAccess> DepartmentAccesses => Set<DepartmentAccess>();
-
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -67,6 +65,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration
         
         b.Ignore<Counterparty>();
         b.Ignore<AggregationGroup>();
+        b.Ignore<User>();
+        b.Ignore<DepartmentAccess>();
         b.Ignore<ExportRecord>();
     }
 

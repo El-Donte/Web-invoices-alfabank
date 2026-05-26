@@ -433,56 +433,7 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
 
                     b.ToTable("invoice_line", (string)null);
                 });
-
-            modelBuilder.Entity("Shared.Entities.User", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("full_name");
-
-                    b.Property<string>("Login")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("login");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("password");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("integer")
-                        .HasColumnName("position");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("user", (string)null);
-                });
-
-            modelBuilder.Entity("Shared.Entities.DepartmentAccess", b =>
-                {
-                    b.HasOne("Shared.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
+            
             modelBuilder.Entity("Shared.Entities.DraftInvoiceLine", b =>
                 {
                     b.HasOne("Shared.Entities.DraftInvoice", "DraftInvoice")

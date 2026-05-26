@@ -21,34 +21,7 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Shared.Entities.DepartmentAccess", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("DepartmentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("department_id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_department_access_user");
-
-                    b.HasIndex("UserId", "DepartmentId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_department_access_user_dept");
-
-                    b.ToTable("department_access", (string)null);
-                });
-
+            
             modelBuilder.Entity("Shared.Entities.DraftInvoice", b =>
                 {
                     b.Property<Guid>("Id")

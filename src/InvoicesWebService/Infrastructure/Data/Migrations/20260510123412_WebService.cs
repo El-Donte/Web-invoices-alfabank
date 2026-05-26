@@ -37,23 +37,6 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "user",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    login = table.Column<string>(type: "text", nullable: false),
-                    password = table.Column<string>(type: "text", nullable: false),
-                    full_name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    position = table.Column<int>(type: "integer", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_user", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "draft_invoice_line",
                 columns: table => new
                 {
@@ -79,25 +62,6 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
                         principalTable: "draft_invoice",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "department_access",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    department_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    user_id = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_department_access", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_department_access_user_user_id",
-                        column: x => x.user_id,
-                        principalTable: "user",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -200,17 +164,6 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_department_access_user",
-                table: "department_access",
-                column: "user_id");
-
-            migrationBuilder.CreateIndex(
-                name: "UX_department_access_user_dept",
-                table: "department_access",
-                columns: new[] { "user_id", "department_id" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "UX_draft_invoice_group_id",
                 table: "draft_invoice",
                 column: "group_id",
@@ -269,9 +222,6 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "department_access");
-
-            migrationBuilder.DropTable(
                 name: "draft_invoice_line");
 
             migrationBuilder.DropTable(
@@ -285,9 +235,6 @@ namespace InvoicesWebService.Infrastructure.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "draft_invoice");
-
-            migrationBuilder.DropTable(
-                name: "user");
         }
     }
 }
