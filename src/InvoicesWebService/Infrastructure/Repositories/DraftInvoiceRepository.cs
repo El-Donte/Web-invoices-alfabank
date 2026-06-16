@@ -23,7 +23,7 @@ public class DraftInvoiceRepository(IDbContextFactory<AppDbContext> ctxFactory) 
         }
     }
 
-    public async Task<DraftInvoice?> GetByGroupIdAsync(Guid id, CancellationToken ct)
+    public async Task<DraftInvoice?> GetByGroupIdAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await ctxFactory.CreateDbContextAsync(ct);
 
@@ -48,7 +48,7 @@ public class DraftInvoiceRepository(IDbContextFactory<AppDbContext> ctxFactory) 
 
         try
         {
-            await context.DraftInvoices.AddAsync(draft, ct);
+            context.DraftInvoices.Add(draft);
             await context.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException ex)
@@ -70,6 +70,21 @@ public class DraftInvoiceRepository(IDbContextFactory<AppDbContext> ctxFactory) 
                     .SetProperty(d => d.Status, status)
                     .SetProperty(d => d.ValidationError, error)
                     .SetProperty(d => d.UpdatedAt, DateTime.UtcNow), ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task AddWithLinesRangeAsync(DraftInvoice[] batch, CancellationToken ct = default)
+    {
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+
+        try
+        { 
+            context.DraftInvoices.AddRange(batch);
+            await context.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException ex)
         {

@@ -11,20 +11,18 @@ using Shared.Entities;
 
 namespace InvoicesWebService.Services.Kafka;
 
-public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
+public sealed class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
 {
-    private readonly SemaphoreSlim _concurrencyLimiter = new(16, 32);
-    
     public AggregationReadyConsumer(
         IServiceProvider serviceProvider,
         KafkaSettings settings,
         ILogger<AggregationReadyConsumer> logger,
-        KafkaJsonDeserializer<AggregationReadyEvent>  deserializer
-        ) : base(settings, serviceProvider, logger)
+        KafkaJsonDeserializer<AggregationReadyEvent> deserializer)
+        : base(settings, serviceProvider, logger)
     {
         _config.FetchMinBytes = 1024;
         _config.FetchMaxBytes = 10_485_760;
-        
+
         _consumer = new ConsumerBuilder<string, AggregationReadyEvent>(_config)
             .SetErrorHandler((_, e) => _logger.LogError("Kafka error: {Reason} | Code: {Code}", e.Reason, e.Code))
             .SetPartitionsAssignedHandler((c, partitions) =>
@@ -34,13 +32,18 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
             })
             .SetValueDeserializer(deserializer)
             .Build();
-        
+
         _consumer.Subscribe(_topic);
     }
-    
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Draft consumer started. Topic: {Topic}", _topic);
+        _logger.LogInformation("AggregationReadyConsumer started. Topic: {Topic}, Group: {Group}", 
+            _topic, _settings.GroupId);
+
+        var batch = new List<ConsumeResult<string, AggregationReadyEvent>>();
+        var lastFlush = DateTime.UtcNow;
+
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -48,12 +51,26 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
                 try
                 {
                     var result = _consumer.Consume(TimeSpan.FromMilliseconds(100));
-                    if (result is null) continue;
-
-                    _ = Task.Run(async () =>
+                    if (result is null)
                     {
-                        await ConsumeAsync(result, stoppingToken);
-                    }, stoppingToken);
+                        if (batch.Count > 0 && 
+                            (DateTime.UtcNow - lastFlush).TotalMilliseconds > _settings.FlushIntervalMs)
+                        {
+                            await FlushBatchAsync(batch, stoppingToken);
+                            batch.Clear();
+                            lastFlush = DateTime.UtcNow;
+                        }
+                        continue;
+                    }
+
+                    batch.Add(result);
+
+                    if (batch.Count >= _settings.BatchSize)
+                    {
+                        await FlushBatchAsync(batch, stoppingToken);
+                        batch.Clear();
+                        lastFlush = DateTime.UtcNow;
+                    }
                 }
                 catch (ConsumeException ex) when (ex.Error.IsFatal)
                 {
@@ -66,53 +83,82 @@ public class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEvent>
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unexpected consume loop error.");
+                    _logger.LogError(ex, "Error in consume loop");
                 }
             }
+
+            if (batch.Count > 0)
+                await FlushBatchAsync(batch, CancellationToken.None);
         }
         finally
         {
             _consumer?.Close();
-            _logger.LogInformation("Kafka consumer stopped gracefully.");
+            _logger.LogInformation("AggregationReadyConsumer stopped gracefully.");
             _consumer?.Dispose();
         }
     }
 
-    private async Task ConsumeAsync(ConsumeResult<string, AggregationReadyEvent> result, CancellationToken ct)
+    private async Task FlushBatchAsync(List<ConsumeResult<string, AggregationReadyEvent>> batch, CancellationToken ct)
     {
-        await _concurrencyLimiter.WaitAsync(ct);
-        var evt = result.Message.Value;
+        if (batch.Count == 0) return;
 
         using var scope = _serviceProvider.CreateScope();
         var draftService = scope.ServiceProvider.GetRequiredService<IDraftInvoiceService>();
         var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
-        
+
         var sw = Stopwatch.StartNew();
+        var processedCount = 0;
+
+        if (batch.Count == 0)
+        {
+            CommitOffsets(batch);
+            return;
+        }
+        
         try
         {
-            await draftService.ProcessAggregationReadyAsync(evt, ct);
+            try
+            {
+                await draftService.ProcessAggregationReadyAsync(batch, ct);
+            }
+            catch (Exception ex)
+            {
+                InvoiceMetrics.RecordDraftDuration(0, "failed");
+                InvoiceMetrics.RecordDraftError(ex.GetType().Name);
 
-            _consumer.Commit(result);
-            sw.Stop();
-            InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "success");
+                await errorService.LogAsync(new ErrorLogEntry(
+                    ProcessingStage.Creation,
+                    "BATCH_PROCESS ERROR",
+                    ex.Message,
+                    JsonSerializer.Serialize(batch.First().Message.Value),
+                    true,
+                    batch.First().Message.Value.AggregationGroupId), ct);
+            }
+
+            _logger.LogInformation("Processed batch of {Count} AggregationReady events", processedCount);
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "failed");
-            InvoiceMetrics.RecordDraftError(ex.GetType().Name);
-
-            await errorService.LogAsync(new ErrorLogEntry(
-                ProcessingStage.Creation,
-                "DRAFT_CREATION_ERROR",
-                ex.Message,
-                JsonSerializer.Serialize(evt),
-                true,
-                evt.AggregationGroupId), ct);
+            _logger.LogError(ex, "Error processing AggregationReady batch");
         }
         finally
         {
-            _concurrencyLimiter.Release();
+            sw.Stop();
+            _logger.LogInformation("AggregationReady batch processed in {Elapsed} sec", 
+                sw.Elapsed.TotalSeconds);
+            InvoiceMetrics.RecordDraftDuration(sw.Elapsed.TotalSeconds, "success");
         }
+    }
+    
+    private void CommitOffsets(List<ConsumeResult<string, AggregationReadyEvent>> batch)
+    {
+        if (batch.Count == 0) return;
+    
+        var offsets = batch
+            .AsParallel()
+            .GroupBy(r => r.TopicPartition)
+            .Select(g => new TopicPartitionOffset(g.Key, g.Max(r => r.Offset.Value) + 1));
+    
+        _consumer.Commit(offsets);
     }
 }

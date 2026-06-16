@@ -105,7 +105,7 @@ internal class Program
     public static async Task Main(string[] args)
     {
         const string Topic = "abs.message";
-        const int TotalMessages = 10_000;
+        const int TotalMessages = 1_000_000;
         
         using var producer = new ProducerBuilder<string, AbsMessage>(config)
             .SetValueSerializer(new KafkaJsonSerializer<AbsMessage>())
