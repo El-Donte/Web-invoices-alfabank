@@ -35,5 +35,8 @@ public enum DraftInvoiceStatus
     New = 0,
 
     [Display(Name = "Ошибка валидации")]
-    ValidatingError  = 1
+    ValidatingError  = 1,
+    
+    [Display(Name = "Одобрен")]
+    Confirmed = 2,
 }

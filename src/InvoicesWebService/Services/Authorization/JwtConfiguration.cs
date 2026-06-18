@@ -3,11 +3,10 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace InvoicesWebService.Services.Authorization;
 
-public class JwtConfiguration(IConfiguration configuration)
+public class JwtConfiguration
 {
     public string Audience { get; set; }
     public string Issuer { get; set; }
     public int ExpireMinutes { get; set; }
-    public SymmetricSecurityKey SecretKey = new SymmetricSecurityKey(
-        Encoding.UTF8.GetBytes(configuration["Jwt:SecretKey"]));
+    public SymmetricSecurityKey SecretKey {get; set;}
 }

@@ -3,6 +3,7 @@ using InvoicesWebService.Infrastructure;
 using InvoicesWebService.Infrastructure.Data;
 using InvoicesWebService.Infrastructure.Repositories;
 using InvoicesWebService.Infrastructure.Repositories.Interfaces;
+using InvoicesWebService.Services;
 using InvoicesWebService.Services.Authorization;
 using InvoicesWebService.Services.DraftServices;
 using InvoicesWebService.Services.Interfaces;
@@ -41,8 +42,10 @@ builder.Services.AddScoped<IRawTransactionReader, RawTransactionReader>();
 
 //services
 builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
-builder.Services.AddScoped<IDraftInvoiceService, DraftInvoiceService>();
+builder.Services.AddScoped<IDraftInvoiceCreationService, DraftInvoiceCreationCreationService>();
 builder.Services.AddScoped<IPositionRoleSyncService, PositionRoleSyncService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.Configure<JwtConfiguration>(builder.Configuration.GetSection("Jwt"));
 
 //kafka
 builder.Services.AddConsumer<AggregationReadyEvent, AggregationReadyConsumer>

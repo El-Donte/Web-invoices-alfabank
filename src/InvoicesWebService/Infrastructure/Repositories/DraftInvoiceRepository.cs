@@ -1,5 +1,6 @@
 using InvoicesWebService.Infrastructure.Data;
 using InvoicesWebService.Infrastructure.Repositories.Interfaces;
+using InvoicesWebService.Models.Responses;
 using Microsoft.EntityFrameworkCore;
 using Shared.Entities;
 
@@ -7,6 +8,61 @@ namespace InvoicesWebService.Infrastructure.Repositories;
 
 public class DraftInvoiceRepository(IDbContextFactory<AppDbContext> ctxFactory) : IDraftInvoiceRepository
 {
+    public async Task<bool> Exists(Guid id, CancellationToken ct)
+    {
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+        try
+        {
+            return await context.DraftInvoices.AsNoTracking().AnyAsync(d => d.Id == id, ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<DraftInvoiceResponse?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+        try
+        {
+            if (!await Exists(id, ct))
+            {
+                return null;
+            }
+
+            return context.DraftInvoices
+                .AsNoTracking()
+                .Where(d => d.Id == id)
+                .Select(d =>
+                    new DraftInvoiceResponse(d.TransactionDate, d.NdsRate, d.TotalNdsAmount,
+                        d.TotalWithNds, d.TotalWithoutNds, d.Status, d.CreatedAt))
+                .First();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<List<DraftInvoiceResponse>> GetAllAsync(CancellationToken ct)
+    {
+        await using var context = await ctxFactory.CreateDbContextAsync(ct);
+        try
+        {
+            return await context.DraftInvoices
+                .AsNoTracking()
+                .Select(d =>
+                    new DraftInvoiceResponse(d.TransactionDate, d.NdsRate, d.TotalNdsAmount,
+                        d.TotalWithNds, d.TotalWithoutNds, d.Status, d.CreatedAt))
+                .ToListAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw ex;
+        }
+    }
+    
     public async Task<bool> ExistsByGroupIdAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await ctxFactory.CreateDbContextAsync(ct);

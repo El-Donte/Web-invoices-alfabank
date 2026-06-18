@@ -66,7 +66,7 @@ public class AggregationRepository(IDbContextFactory<AppDbContext> ctxFactory) :
         var numbers = operationNumbers.Distinct().ToList();
         return await context.AggregationGroups
             .Where(g => numbers.Contains(g.OperationNumber))
-            .AsNoTracking()   // отключаем трекинг для скорости
+            .AsNoTracking()
             .ToListAsync(ct);
     }
 }

@@ -83,25 +83,11 @@ public static class Errors
         }
     }
 
-    public static class TrackErrors
+    public static class DraftInvoiceErrors
     {
-        public static Error MissingId()
+        public static Error MissingDraftInvoice()
         {
-            return Error.Validation("id.missing", "Id песни отсутствует");
-        }
-
-        public static Error NotFound(Guid? id = null)
-        {
-            var forId = id == null ? "" : $" для id: '{id}'";
-            return Error.NotFound("track.not.found", $"track not found{forId}");
-        }
-    }
-
-    public static class FileErrors
-    {
-        public static Error MissingKey()
-        {
-            return Error.Validation("key.missing", "Ключ файла отсутсвует");
+            return Error.Validation("draft.invoice.missing", "черновик счета фактуры отсутствует");
         }
 
         public static Error MissingFilePath()

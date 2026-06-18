@@ -103,7 +103,7 @@ public sealed class AggregationReadyConsumer : KafkaConsumer<AggregationReadyEve
         if (batch.Count == 0) return;
 
         using var scope = _serviceProvider.CreateScope();
-        var draftService = scope.ServiceProvider.GetRequiredService<IDraftInvoiceService>();
+        var draftService = scope.ServiceProvider.GetRequiredService<IDraftInvoiceCreationService>();
         var errorService = scope.ServiceProvider.GetRequiredService<IProcessingErrorService>();
 
         var sw = Stopwatch.StartNew();

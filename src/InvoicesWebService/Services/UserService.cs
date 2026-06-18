@@ -6,6 +6,7 @@ using InvoicesWebService.Services.Authorization;
 using InvoicesWebService.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Shared.Entities;
@@ -13,8 +14,10 @@ using Shared.Results;
 
 namespace InvoicesWebService.Services;
 
-public class UserService(UserManager<User> userManager, JwtConfiguration configuration, UserDbContext dbContext) : IUserService
+public class UserService(UserManager<User> userManager, IOptions<JwtConfiguration> _configuration, UserDbContext dbContext) : IUserService
 {
+    private JwtConfiguration? configuration = _configuration.Value;
+    
     public async Task<Result<UserResponse>> Login(UserLoginRequest request, CancellationToken ct)
     {
         var user = await userManager.FindByNameAsync(request.Login);
