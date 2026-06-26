@@ -43,6 +43,7 @@ builder.Services.AddScoped<IRawTransactionReader, RawTransactionReader>();
 //services
 builder.Services.AddScoped<IProcessingErrorService, ProcessingErrorService>();
 builder.Services.AddScoped<IDraftInvoiceCreationService, DraftInvoiceCreationCreationService>();
+builder.Services.AddScoped<IDraftInvoiceService, DraftInvoiceService>();
 builder.Services.AddScoped<IPositionRoleSyncService, PositionRoleSyncService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.Configure<JwtConfiguration>(builder.Configuration.GetSection("Jwt"));

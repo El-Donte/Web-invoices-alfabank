@@ -52,6 +52,7 @@ public class DraftInvoiceRepository(IDbContextFactory<AppDbContext> ctxFactory) 
         {
             return await context.DraftInvoices
                 .AsNoTracking()
+                .Take(10)
                 .Select(d =>
                     new DraftInvoiceResponse(d.TransactionDate, d.NdsRate, d.TotalNdsAmount,
                         d.TotalWithNds, d.TotalWithoutNds, d.Status, d.CreatedAt))
